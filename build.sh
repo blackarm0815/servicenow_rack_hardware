@@ -17,5 +17,5 @@ fi
 echo
 
 # clean up
-grep -v '// @ts-ignore' rack_hardware.js > temp.js
+grep -v '// @ts-ignore' rack_hardware.js | sed 's/    /  /g' > temp.js
 mv temp.js rack_hardware.js
