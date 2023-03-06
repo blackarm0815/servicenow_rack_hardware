@@ -283,9 +283,9 @@ const redbeardRackHardwareSort = (
           hardware,
           modelData,
         );
+        rackHardwareResult[hardwareSysId].push(resultRack.testReport);
         if (resultRack.pass) {
           isUnidentified = false;
-          rackHardwareResult[hardwareSysId].push(resultRack.testReport);
           if (!Object.prototype.hasOwnProperty.call(rackHardwareRacks, rackSysId)) {
             rackHardwareRacks[rackSysId] = {};
           }

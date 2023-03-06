@@ -196,9 +196,9 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
                 isUnidentified = true;
                 // check for racks in alm hardware (weird, but it happens)
                 var resultRack = testValidRack(hardware, modelData);
+                rackHardwareResult[hardwareSysId].push(resultRack.testReport);
                 if (resultRack.pass) {
                     isUnidentified = false;
-                    rackHardwareResult[hardwareSysId].push(resultRack.testReport);
                     if (!Object.prototype.hasOwnProperty.call(rackHardwareRacks, rackSysId)) {
                         rackHardwareRacks[rackSysId] = {};
                     }
