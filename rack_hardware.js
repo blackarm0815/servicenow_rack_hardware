@@ -82,9 +82,88 @@ var getSortedRackHardware = function (rackSysIdArray) {
             skuSysIdUnique: skuSysIdUnique
         };
     };
+    var getRackZoneData = function (rackSysIdName) {
+        var rackSysIdRowSysId = {};
+        var rowNameRowSysId = {};
+        var rowNameRackNameList = {};
+        var rowSysIdRackSysIds = {};
+        var rowSysIdRoomSysId = {};
+        var rowSysIdRowName = {};
+        var rowSysIdUnique = {};
+        var grRackToRow = new GlideRecord('cmdb_rel_ci');
+        grRackToRow.addQuery('child', 'IN', Object.keys(rackSysIdName));
+        grRackToRow.query();
+        while (grRackToRow.next()) {
+            // test
+            var rackSysId = checkString(grRackToRow.child.getValue());
+            var rowSysId = checkString(grRackToRow.parent.getValue());
+            // store
+            if (rackSysId !== null && rowSysId !== null) {
+                rackSysIdRowSysId[rackSysId] = rowSysId;
+                rowSysIdUnique[rowSysId] = true;
+                // build zone rack relationships
+                if (!Object.prototype.hasOwnProperty.call(rowSysIdRackSysIds, rowSysId)) {
+                    rowSysIdRackSysIds[rowSysId] = {};
+                }
+                rowSysIdRackSysIds[rowSysId][rackSysId] = true;
+            }
+        }
+        if (Object.keys(rowSysIdUnique).length > 0) {
+            var grRowData = new GlideRecord('cmdb_ci_zone');
+            grRowData.addQuery('sys_id', 'IN', Object.keys(rowSysIdUnique));
+            grRowData.query();
+            while (grRowData.next()) {
+                var tempZoneSysId = checkString(grRowData.getUniqueValue());
+                var zoneName = checkString(grRowData.name.getValue());
+                if (tempZoneSysId !== null && zoneName !== null) {
+                    rowNameRowSysId[zoneName] = tempZoneSysId;
+                    rowSysIdRowName[tempZoneSysId] = zoneName;
+                }
+            }
+        }
+        // get the relationships between zones and rooms
+        // this is used for the 3d button
+        if (Object.keys(rowSysIdUnique).length > 0) {
+            var grRowToRoom = new GlideRecord('cmdb_rel_ci');
+            grRowToRoom.addQuery('child', 'IN', Object.keys(rowSysIdUnique));
+            grRowToRoom.query();
+            while (grRowToRoom.next()) {
+                // test
+                var rowSysId = checkString(grRowToRoom.child.getValue());
+                var roomSysId = checkString(grRowToRoom.parent.getValue());
+                // store
+                if (rowSysId !== null && roomSysId !== null) {
+                    rowSysIdRoomSysId[rowSysId] = roomSysId;
+                }
+            }
+        }
+        // build object where the key is the row name and the value is a list of rack names
+        // have a 'Row missing' backup for orphan racks (client side will handle it)
+        Object.keys(rackSysIdName).forEach(function (rackSysId) {
+            var rackName = rackSysIdName[rackSysId];
+            var tempRowName = 'Row missing';
+            if (Object.prototype.hasOwnProperty.call(rackSysIdRowSysId, rackSysId)) {
+                var tempRowSysId = rackSysIdRowSysId[rackSysId];
+                if (Object.prototype.hasOwnProperty.call(rowSysIdRowName, tempRowSysId)) {
+                    tempRowName = rowSysIdRowName[tempRowSysId];
+                }
+            }
+            if (!Object.prototype.hasOwnProperty.call(rowNameRackNameList, tempRowName)) {
+                rowNameRackNameList[tempRowName] = [];
+            }
+            rowNameRackNameList[tempRowName].push(rackName);
+        });
+        return {
+            rackSysIdRowSysId: rackSysIdRowSysId,
+            rowNameRackNameList: rowNameRackNameList,
+            rowNameRowSysId: rowNameRowSysId,
+            rowSysIdRoomSysId: rowSysIdRoomSysId
+        };
+    };
     var getRackData = function (tempRackSysIdArray) {
-        var tempRackData = {};
-        var tempRackNameSysId = {};
+        var rackData = {};
+        var rackNameSysId = {};
+        var rackSysIdName = {};
         if (tempRackSysIdArray.length > 0) {
             var grRack = new GlideRecord('cmdb_ci_rack');
             grRack.addQuery('sys_id', 'IN', tempRackSysIdArray);
@@ -94,24 +173,29 @@ var getSortedRackHardware = function (rackSysIdArray) {
                 var rackName = checkString(grRack.name.getValue());
                 var rackHeight = checkInteger(grRack.rack_units.getValue());
                 if (rackSysId !== null) {
-                    tempRackData[rackSysId] = {
+                    rackData[rackSysId] = {
                         rackName: rackName,
                         rackHeight: rackHeight
                     };
                     if (rackName !== null) {
-                        tempRackNameSysId[rackName] = rackSysId;
+                        rackNameSysId[rackName] = rackSysId;
+                    }
+                    if (rackName !== null) {
+                        rackSysIdName[rackSysId] = rackName;
                     }
                 }
             }
         }
         return {
-            rackData: tempRackData,
-            rackNameSysId: tempRackNameSysId
+            rackData: rackData,
+            rackNameSysId: rackNameSysId,
+            rackSysIdName: rackSysIdName
         };
     };
     // collect data
-    var _a = getRackData(rackSysIdArray), rackData = _a.rackData, rackNameSysId = _a.rackNameSysId;
+    var _a = getRackData(rackSysIdArray), rackData = _a.rackData, rackNameSysId = _a.rackNameSysId, rackSysIdName = _a.rackSysIdName;
     var _b = getHardware(rackSysIdArray), ciSysIdUnique = _b.ciSysIdUnique, hardwareData = _b.hardwareData, hardwareSysIdUnique = _b.hardwareSysIdUnique, modelSysIdUnique = _b.modelSysIdUnique, skuSysIdUnique = _b.skuSysIdUnique;
+    var _c = getRackZoneData(rackSysIdName), rackSysIdRowSysId = _c.rackSysIdRowSysId, rowNameRackNameList = _c.rowNameRackNameList, rowNameRowSysId = _c.rowNameRowSysId, rowSysIdRoomSysId = _c.rowSysIdRoomSysId;
     // return data
     return {
         ciSysIdUnique: ciSysIdUnique,
@@ -120,7 +204,12 @@ var getSortedRackHardware = function (rackSysIdArray) {
         modelSysIdUnique: modelSysIdUnique,
         skuSysIdUnique: skuSysIdUnique,
         rackData: rackData,
-        rackNameSysId: rackNameSysId
+        rackNameSysId: rackNameSysId,
+        rackSysIdName: rackSysIdName,
+        rackSysIdRowSysId: rackSysIdRowSysId,
+        rowNameRackNameList: rowNameRackNameList,
+        rowNameRowSysId: rowNameRowSysId,
+        rowSysIdRoomSysId: rowSysIdRoomSysId
     };
 };
 var testRackSysIds = ['f4738c21dbb1c7442b56541adc96196a'];

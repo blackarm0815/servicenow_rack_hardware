@@ -114,11 +114,95 @@ const getSortedRackHardware = (
       skuSysIdUnique,
     };
   };
+  const getRackZoneData = (
+    rackSysIdName: Record<string, string>,
+  ) => {
+    const rackSysIdRowSysId: Record<string, string> = {};
+    const rowNameRowSysId: Record<string, string> = {};
+    const rowNameRackNameList: Record<string, Array<string>> = {};
+    const rowSysIdRackSysIds: Record<string, Record<string, boolean>> = {};
+    const rowSysIdRoomSysId: Record<string, string> = {};
+    const rowSysIdRowName: Record<string, string> = {};
+    const rowSysIdUnique: Record<string, boolean> = {};
+    // @ts-ignore
+    const grRackToRow = new GlideRecord('cmdb_rel_ci');
+    grRackToRow.addQuery('child', 'IN', Object.keys(rackSysIdName));
+    grRackToRow.query();
+    while (grRackToRow.next()) {
+      // test
+      const rackSysId = checkString(grRackToRow.child.getValue());
+      const rowSysId = checkString(grRackToRow.parent.getValue());
+      // store
+      if (rackSysId !== null && rowSysId !== null) {
+        rackSysIdRowSysId[rackSysId] = rowSysId;
+        rowSysIdUnique[rowSysId] = true;
+        // build zone rack relationships
+        if (!Object.prototype.hasOwnProperty.call(rowSysIdRackSysIds, rowSysId)) {
+          rowSysIdRackSysIds[rowSysId] = {};
+        }
+        rowSysIdRackSysIds[rowSysId][rackSysId] = true;
+      }
+    }
+    if (Object.keys(rowSysIdUnique).length > 0) {
+      // @ts-ignore
+      const grRowData = new GlideRecord('cmdb_ci_zone');
+      grRowData.addQuery('sys_id', 'IN', Object.keys(rowSysIdUnique));
+      grRowData.query();
+      while (grRowData.next()) {
+        const tempZoneSysId = checkString(grRowData.getUniqueValue());
+        const zoneName = checkString(grRowData.name.getValue());
+        if (tempZoneSysId !== null && zoneName !== null) {
+          rowNameRowSysId[zoneName] = tempZoneSysId;
+          rowSysIdRowName[tempZoneSysId] = zoneName;
+        }
+      }
+    }
+    // get the relationships between zones and rooms
+    // this is used for the 3d button
+    if (Object.keys(rowSysIdUnique).length > 0) {
+      // @ts-ignore
+      const grRowToRoom = new GlideRecord('cmdb_rel_ci');
+      grRowToRoom.addQuery('child', 'IN', Object.keys(rowSysIdUnique));
+      grRowToRoom.query();
+      while (grRowToRoom.next()) {
+        // test
+        const rowSysId = checkString(grRowToRoom.child.getValue());
+        const roomSysId = checkString(grRowToRoom.parent.getValue());
+        // store
+        if (rowSysId !== null && roomSysId !== null) {
+          rowSysIdRoomSysId[rowSysId] = roomSysId;
+        }
+      }
+    }
+    // build object where the key is the row name and the value is a list of rack names
+    // have a 'Row missing' backup for orphan racks (client side will handle it)
+    Object.keys(rackSysIdName).forEach((rackSysId) => {
+      const rackName = rackSysIdName[rackSysId];
+      let tempRowName = 'Row missing';
+      if (Object.prototype.hasOwnProperty.call(rackSysIdRowSysId, rackSysId)) {
+        const tempRowSysId = rackSysIdRowSysId[rackSysId];
+        if (Object.prototype.hasOwnProperty.call(rowSysIdRowName, tempRowSysId)) {
+          tempRowName = rowSysIdRowName[tempRowSysId];
+        }
+      }
+      if (!Object.prototype.hasOwnProperty.call(rowNameRackNameList, tempRowName)) {
+        rowNameRackNameList[tempRowName] = [];
+      }
+      rowNameRackNameList[tempRowName].push(rackName);
+    });
+    return {
+      rackSysIdRowSysId,
+      rowNameRackNameList,
+      rowNameRowSysId,
+      rowSysIdRoomSysId,
+    };
+  };
   const getRackData = (
     tempRackSysIdArray: Array<string>,
   ) => {
-    const tempRackData: Record<string, Rack> = {};
-    const tempRackNameSysId: Record<string, string> = {};
+    const rackData: Record<string, Rack> = {};
+    const rackNameSysId: Record<string, string> = {};
+    const rackSysIdName: Record<string, string> = {};
     if (tempRackSysIdArray.length > 0) {
       // @ts-ignore
       const grRack = new GlideRecord('cmdb_ci_rack');
@@ -129,25 +213,30 @@ const getSortedRackHardware = (
         const rackName = checkString(grRack.name.getValue());
         const rackHeight = checkInteger(grRack.rack_units.getValue());
         if (rackSysId !== null) {
-          tempRackData[rackSysId] = {
+          rackData[rackSysId] = {
             rackName,
             rackHeight,
           };
           if (rackName !== null) {
-            tempRackNameSysId[rackName] = rackSysId;
+            rackNameSysId[rackName] = rackSysId;
+          }
+          if (rackName !== null) {
+            rackSysIdName[rackSysId] = rackName;
           }
         }
       }
     }
     return {
-      rackData: tempRackData,
-      rackNameSysId: tempRackNameSysId,
+      rackData,
+      rackNameSysId,
+      rackSysIdName,
     };
   };
   // collect data
   const {
     rackData,
     rackNameSysId,
+    rackSysIdName,
   } = getRackData(rackSysIdArray);
   const {
     ciSysIdUnique,
@@ -156,6 +245,12 @@ const getSortedRackHardware = (
     modelSysIdUnique,
     skuSysIdUnique,
   } = getHardware(rackSysIdArray);
+  const {
+    rackSysIdRowSysId,
+    rowNameRackNameList,
+    rowNameRowSysId,
+    rowSysIdRoomSysId,
+  } = getRackZoneData(rackSysIdName);
   // return data
   return {
     ciSysIdUnique,
@@ -165,6 +260,11 @@ const getSortedRackHardware = (
     skuSysIdUnique,
     rackData,
     rackNameSysId,
+    rackSysIdName,
+    rackSysIdRowSysId,
+    rowNameRackNameList,
+    rowNameRowSysId,
+    rowSysIdRoomSysId,
   };
 };
 const testRackSysIds = ['f4738c21dbb1c7442b56541adc96196a'];
