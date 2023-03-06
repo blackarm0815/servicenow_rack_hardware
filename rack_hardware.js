@@ -29,52 +29,82 @@ var getSortedRackHardware = function (rackSysIdArray) {
     //
     //
     //
+    var testValidChassisNetwork = function (hardwareData, hardware) {
+        if (hardware.parent === null) {
+            return {
+                pass: false,
+                testReport: 'not valid network gear - no parent'
+            };
+        }
+        if (!Object.prototype.hasOwnProperty.call(hardwareData, hardware.parent)) {
+            return {
+                pass: false,
+                testReport: 'not valid network gear - parent not found in hardwareData'
+            };
+        }
+        if (hardwareData[hardware.parent].rackSysId !== hardware.rackSysId) {
+            return {
+                pass: false,
+                testReport: 'not valid network gear - parent not in the same rack'
+            };
+        }
+        if (hardware.modelCategoryName !== 'Network Gear') {
+            return {
+                pass: false,
+                testReport: 'not valid network gear - model category is not network gear'
+            };
+        }
+        return {
+            pass: true,
+            testReport: 'is valid network gear'
+        };
+    };
     var testValidRackMounted = function (hardware, modelData) {
         if (hardware.parent !== null) {
             return {
                 pass: false,
-                failReport: 'not a valid rack mounted - has a parent'
+                testReport: 'not a valid rack mounted - has a parent'
             };
         }
         if (hardware.rackU === null) {
             return {
                 pass: false,
-                failReport: 'not a valid  rack mounted - u_rack_u is missing'
+                testReport: 'not a valid  rack mounted - u_rack_u is missing'
             };
         }
         if (hardware.rackU === 0) {
             return {
                 pass: false,
-                failReport: 'not a valid  rack mounted - u_rack_u is zero'
+                testReport: 'not a valid  rack mounted - u_rack_u is zero'
             };
         }
         if (hardware.modelSysId === null) {
             return {
                 pass: false,
-                failReport: 'not a valid  rack mounted - does not have a model'
+                testReport: 'not a valid  rack mounted - does not have a model'
             };
         }
         if (!Object.prototype.hasOwnProperty.call(modelData, hardware.modelSysId)) {
             return {
                 pass: false,
-                failReport: 'not a valid  rack mounted - model not found'
+                testReport: 'not a valid  rack mounted - model not found'
             };
         }
         if (modelData[hardware.modelSysId].modelHeight === null) {
             return {
                 pass: false,
-                failReport: 'not a valid  rack mounted - model height is missing'
+                testReport: 'not a valid  rack mounted - model height is missing'
             };
         }
         if (modelData[hardware.modelSysId].modelHeight === 0) {
             return {
                 pass: false,
-                failReport: 'not a valid  rack mounted - model height is zero'
+                testReport: 'not a valid  rack mounted - model height is zero'
             };
         }
         return {
             pass: true,
-            failReport: ''
+            testReport: 'is a valid rack mounted'
         };
     };
     var testValidChassisSled = function (hardwareData, hardwareSysId) {
@@ -82,58 +112,69 @@ var getSortedRackHardware = function (rackSysIdArray) {
         if (hardwareData[hardwareSysId].slot === null) {
             return {
                 pass: false,
-                failReport: 'not a valid sled - slot missing'
+                testReport: 'not a valid sled - slot missing'
             };
         }
         if (hardwareData[hardwareSysId].slot === 0) {
             return {
                 pass: false,
-                failReport: 'not a valid sled - slot is zero'
+                testReport: 'not a valid sled - slot is zero'
             };
         }
         if (parentSysId === null) {
             return {
                 pass: false,
-                failReport: 'not a valid sled - parent missing'
+                testReport: 'not a valid sled - parent missing'
             };
         }
         if (parentSysId !== null && !Object.prototype.hasOwnProperty.call(hardwareData, parentSysId)) {
             return {
                 pass: false,
-                failReport: 'not a valid sled - parent not found in hardwareData'
+                testReport: 'not a valid sled - parent not found in hardwareData'
             };
         }
         if (parentSysId !== null && hardwareData[parentSysId].rackSysId !== hardwareData[hardwareSysId].rackSysId) {
             return {
                 pass: false,
-                failReport: 'not a valid sled - parent not in same rack'
+                testReport: 'not a valid sled - parent not in same rack'
             };
         }
         return {
             pass: true,
-            failReport: ''
+            testReport: 'is a valid sled'
+        };
+    };
+    var testValidPdu = function (hardware) {
+        if (hardware.modelCategoryName !== 'PDU') {
+            return {
+                pass: false,
+                testReport: 'not a valid pdu - hardware.modelCategoryName is not PDU'
+            };
+        }
+        return {
+            pass: true,
+            testReport: 'is a valid pdu'
         };
     };
     var testValidRack = function (hardware, modelData) {
         if (hardware.modelSysId !== null) {
             if (Object.prototype.hasOwnProperty.call(modelData, hardware.modelSysId)) {
                 if (modelData[hardware.modelSysId].deviceCategory === 'Rack') {
-                    return true;
+                    return {
+                        pass: true,
+                        testReport: 'is a valid rack'
+                    };
                 }
             }
         }
-        return false;
+        return {
+            pass: false,
+            testReport: 'not a valid rack - model deviceCategory is not Rack'
+        };
     };
     var calculateSortedHardware = function (hardwareData, modelData) {
-        // test booleans
-        var isRack;
-        var isSled;
-        var isRackMounted;
-        var isPdu;
-        var isNetworkCard;
-        var pass;
-        // feedback about result
-        var failReason;
+        // boolean to stop tests being run once the hardware is identified
+        var isUnidentified;
         // datastructures
         var collisionHardware = {};
         var rackHardwareBadData = {};
@@ -156,36 +197,33 @@ var getSortedRackHardware = function (rackSysIdArray) {
             }
             if (rackSysId !== null) {
                 rackHardwareResult[hardwareSysId] = [];
-                // set test booleans to false
-                isRack = false;
-                isSled = false;
-                isRackMounted = false;
-                isPdu = false;
-                isNetworkCard = false;
+                isUnidentified = true;
                 // check for rack
-                isRack = testValidRack(hardware, modelData);
-                if (isRack) {
-                    rackHardwareResult[hardwareSysId].push('is a rack');
+                var resultRack = testValidRack(hardware, modelData);
+                rackHardwareResult[hardwareSysId].push(resultRack.testReport);
+                if (resultRack.pass) {
+                    isUnidentified = false;
                 }
                 // check for sled
-                if (!isRack) {
+                if (isUnidentified) {
                     var resultSled = testValidChassisSled(hardwareData, hardwareSysId);
-                    isSled = resultSled.pass;
-                    if (isSled && parent !== null) {
-                        if (!Object.prototype.hasOwnProperty.call(rackHardwareChassisSled, parent)) {
-                            rackHardwareChassisSled[parent] = {};
+                    rackHardwareResult[hardwareSysId].push(resultSled.testReport);
+                    if (resultSled.pass) {
+                        isUnidentified = false;
+                        if (parent !== null) {
+                            if (!Object.prototype.hasOwnProperty.call(rackHardwareChassisSled, parent)) {
+                                rackHardwareChassisSled[parent] = {};
+                            }
+                            rackHardwareChassisSled[parent][hardwareSysId] = true;
                         }
-                        rackHardwareChassisSled[parent][hardwareSysId] = true;
-                    }
-                    else {
-                        rackHardwareResult[hardwareSysId].push(resultSled.failReport);
                     }
                 }
                 // check for rackmounted
-                if (!isSled) {
+                if (isUnidentified) {
                     var resultRackMounted = testValidRackMounted(hardware, modelData);
-                    isRackMounted = resultRackMounted.pass;
-                    if (isRackMounted) {
+                    rackHardwareResult[hardwareSysId].push(resultRackMounted.testReport);
+                    if (resultRackMounted.pass) {
+                        isUnidentified = false;
                         if (!Object.prototype.hasOwnProperty.call(rackHardwareRackMounted, rackSysId)) {
                             rackHardwareRackMounted[rackSysId] = {};
                         }
@@ -217,9 +255,38 @@ var getSortedRackHardware = function (rackSysIdArray) {
                             }
                         }
                     }
-                    else {
-                        rackHardwareResult[hardwareSysId].push(resultRackMounted.failReport);
+                }
+                // check for network cards
+                if (isUnidentified) {
+                    var resultNetworkCard = testValidChassisNetwork(hardwareData, hardware);
+                    rackHardwareResult[hardwareSysId].push(resultNetworkCard.testReport);
+                    if (resultNetworkCard.pass) {
+                        isUnidentified = false;
+                        if (!Object.prototype.hasOwnProperty.call(rackHardwareRackMounted, rackSysId)) {
+                            rackHardwareRackMounted[rackSysId] = {};
+                        }
+                        rackHardwareRackMounted[rackSysId][hardwareSysId] = true;
                     }
+                }
+                // check for pdus
+                if (isUnidentified) {
+                    var resultPdu = testValidPdu(hardware);
+                    rackHardwareResult[hardwareSysId].push(resultPdu.testReport);
+                    if (resultPdu.pass) {
+                        isUnidentified = false;
+                        if (!Object.prototype.hasOwnProperty.call(rackHardwarePdu, rackSysId)) {
+                            rackHardwarePdu[rackSysId] = {};
+                        }
+                        rackHardwarePdu[rackSysId][hardwareSysId] = true;
+                    }
+                }
+                // catch everything that has not been identified
+                if (isUnidentified) {
+                    rackHardwareResult[hardwareSysId].push('unidentified - bad data');
+                    if (!Object.prototype.hasOwnProperty.call(rackHardwareBadData, rackSysId)) {
+                        rackHardwareBadData[rackSysId] = {};
+                    }
+                    rackHardwareBadData[rackSysId][hardwareSysId] = true;
                 }
             }
         });
@@ -325,84 +392,6 @@ var getSortedRackHardware = function (rackSysIdArray) {
             skuSysIdUnique: skuSysIdUnique
         };
     };
-    var getRackZoneData = function (rackSysIdName) {
-        var rackSysIdRowSysId = {};
-        var rowNameRowSysId = {};
-        var rowNameRackNameList = {};
-        var rowSysIdRackSysIds = {};
-        var rowSysIdRoomSysId = {};
-        var rowSysIdRowName = {};
-        var rowSysIdUnique = {};
-        var grRackToRow = new GlideRecord('cmdb_rel_ci');
-        grRackToRow.addQuery('child', 'IN', Object.keys(rackSysIdName));
-        grRackToRow.query();
-        while (grRackToRow.next()) {
-            // test
-            var rackSysId = checkString(grRackToRow.child.getValue());
-            var rowSysId = checkString(grRackToRow.parent.getValue());
-            // store
-            if (rackSysId !== null && rowSysId !== null) {
-                rackSysIdRowSysId[rackSysId] = rowSysId;
-                rowSysIdUnique[rowSysId] = true;
-                // build zone rack relationships
-                if (!Object.prototype.hasOwnProperty.call(rowSysIdRackSysIds, rowSysId)) {
-                    rowSysIdRackSysIds[rowSysId] = {};
-                }
-                rowSysIdRackSysIds[rowSysId][rackSysId] = true;
-            }
-        }
-        if (Object.keys(rowSysIdUnique).length > 0) {
-            var grRowData = new GlideRecord('cmdb_ci_zone');
-            grRowData.addQuery('sys_id', 'IN', Object.keys(rowSysIdUnique));
-            grRowData.query();
-            while (grRowData.next()) {
-                var tempZoneSysId = checkString(grRowData.getUniqueValue());
-                var zoneName = checkString(grRowData.name.getValue());
-                if (tempZoneSysId !== null && zoneName !== null) {
-                    rowNameRowSysId[zoneName] = tempZoneSysId;
-                    rowSysIdRowName[tempZoneSysId] = zoneName;
-                }
-            }
-        }
-        // get the relationships between zones and rooms
-        // this is used for the 3d button
-        if (Object.keys(rowSysIdUnique).length > 0) {
-            var grRowToRoom = new GlideRecord('cmdb_rel_ci');
-            grRowToRoom.addQuery('child', 'IN', Object.keys(rowSysIdUnique));
-            grRowToRoom.query();
-            while (grRowToRoom.next()) {
-                // test
-                var rowSysId = checkString(grRowToRoom.child.getValue());
-                var roomSysId = checkString(grRowToRoom.parent.getValue());
-                // store
-                if (rowSysId !== null && roomSysId !== null) {
-                    rowSysIdRoomSysId[rowSysId] = roomSysId;
-                }
-            }
-        }
-        // build object where the key is the row name and the value is a list of rack names
-        // have a 'Row missing' backup for orphan racks (client side will handle it)
-        Object.keys(rackSysIdName).forEach(function (rackSysId) {
-            var rackName = rackSysIdName[rackSysId];
-            var tempRowName = 'Row missing';
-            if (Object.prototype.hasOwnProperty.call(rackSysIdRowSysId, rackSysId)) {
-                var tempRowSysId = rackSysIdRowSysId[rackSysId];
-                if (Object.prototype.hasOwnProperty.call(rowSysIdRowName, tempRowSysId)) {
-                    tempRowName = rowSysIdRowName[tempRowSysId];
-                }
-            }
-            if (!Object.prototype.hasOwnProperty.call(rowNameRackNameList, tempRowName)) {
-                rowNameRackNameList[tempRowName] = [];
-            }
-            rowNameRackNameList[tempRowName].push(rackName);
-        });
-        return {
-            rackSysIdRowSysId: rackSysIdRowSysId,
-            rowNameRackNameList: rowNameRackNameList,
-            rowNameRowSysId: rowNameRowSysId,
-            rowSysIdRoomSysId: rowSysIdRoomSysId
-        };
-    };
     var getRackData = function (tempRackSysIdArray) {
         var rackData = {};
         var rackNameSysId = {};
@@ -435,39 +424,23 @@ var getSortedRackHardware = function (rackSysIdArray) {
             rackSysIdName: rackSysIdName
         };
     };
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
     // collect data
     var _a = getRackData(rackSysIdArray), rackData = _a.rackData, rackNameSysId = _a.rackNameSysId, rackSysIdName = _a.rackSysIdName;
+    //
     var _b = getHardware(rackSysIdArray), ciSysIdUnique = _b.ciSysIdUnique, hardwareData = _b.hardwareData, hardwareSysIdUnique = _b.hardwareSysIdUnique, modelSysIdUnique = _b.modelSysIdUnique, skuSysIdUnique = _b.skuSysIdUnique;
-    var _c = getRackZoneData(rackSysIdName), rackSysIdRowSysId = _c.rackSysIdRowSysId, rowNameRackNameList = _c.rowNameRackNameList, rowNameRowSysId = _c.rowNameRowSysId, rowSysIdRoomSysId = _c.rowSysIdRoomSysId;
+    //
     var modelData = getModel(modelSysIdUnique);
-    var _d = calculateSortedHardware(hardwareData, modelData), collisionHardware = _d.collisionHardware, rackHardwareBadData = _d.rackHardwareBadData, rackHardwareChassisNetwork = _d.rackHardwareChassisNetwork, rackHardwareChassisSled = _d.rackHardwareChassisSled, rackHardwarePdu = _d.rackHardwarePdu, rackHardwareRackMounted = _d.rackHardwareRackMounted, rackHardwareResult = _d.rackHardwareResult, usageUnits = _d.usageUnits;
     //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
+    var _c = calculateSortedHardware(hardwareData, modelData), collisionHardware = _c.collisionHardware, rackHardwareBadData = _c.rackHardwareBadData, rackHardwareChassisNetwork = _c.rackHardwareChassisNetwork, rackHardwareChassisSled = _c.rackHardwareChassisSled, rackHardwarePdu = _c.rackHardwarePdu, rackHardwareRackMounted = _c.rackHardwareRackMounted, rackHardwareResult = _c.rackHardwareResult, usageUnits = _c.usageUnits;
     // return data
     return {
-        ciSysIdUnique: ciSysIdUnique,
+        // ciSysIdUnique,
         collisionHardware: collisionHardware,
         hardwareData: hardwareData,
-        hardwareSysIdUnique: hardwareSysIdUnique,
+        // hardwareSysIdUnique,
         modelData: modelData,
-        modelSysIdUnique: modelSysIdUnique,
-        skuSysIdUnique: skuSysIdUnique,
+        // modelSysIdUnique,
+        // skuSysIdUnique,
         rackData: rackData,
         rackHardwareBadData: rackHardwareBadData,
         rackHardwareChassisNetwork: rackHardwareChassisNetwork,
@@ -477,12 +450,8 @@ var getSortedRackHardware = function (rackSysIdArray) {
         rackHardwareResult: rackHardwareResult,
         rackNameSysId: rackNameSysId,
         rackSysIdName: rackSysIdName,
-        rackSysIdRowSysId: rackSysIdRowSysId,
-        rowNameRackNameList: rowNameRackNameList,
-        rowNameRowSysId: rowNameRowSysId,
-        rowSysIdRoomSysId: rowSysIdRoomSysId,
         usageUnits: usageUnits
     };
 };
-var testRackSysIds = ['f4738c21dbb1c7442b56541adc96196a'];
+var testRackSysIds = ['bc22df4adb1ec70cab79f7d41d9619f6', 'b817db4edb168bc010b6f1561d961914', 'f4738c21dbb1c7442b56541adc96196a', 'b1c34461dbb1c7442b56541adc96198f', 'efd3cc61dbb1c7442b56541adc961978', 'bdba2b74db271788259e5898dc9619a4', '3abaa3f4db271788259e5898dc9619ab', '3bba63f4db271788259e5898dc961971', '30cae3f4db271788259e5898dc961926', '0aca67f4db271788259e5898dc961979'];
 gs.print(getSortedRackHardware(testRackSysIds));
