@@ -71,12 +71,6 @@ const getSortedRackHardware = (
     rackSysIdName,
   };
 };
-const testRackSysIds = [
-  '14ef148a37bc7e40362896d543990ef4',
-  '46fb332a2b45820054a41bc5a8da15fa',
-  '163c772a2b45820054a41bc5a8da15f6',
-  '5e3c772a2b45820054a41bc5a8da15f6',
-];
-const foo = getSortedRackHardware(testRackSysIds); // remove this line
+const testRackSysIds = ['14ef148a37bc7e40362896d543990ef4', '46fb332a2b45820054a41bc5a8da15fa', '163c772a2b45820054a41bc5a8da15f6', '5e3c772a2b45820054a41bc5a8da15f6'];
 // @ts-ignore
-gs.print(foo); // remove this line
+gs.print(getSortedRackHardware(testRackSysIds));

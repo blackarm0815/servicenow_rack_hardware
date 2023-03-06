@@ -20,7 +20,6 @@ var getSortedRackHardware = function (rackSysIdArray) {
         var tempRackNameSysId = {};
         var tempRackSysIdName = {};
         if (tempRackSysIdArray.length > 0) {
-            // @ts-ignore
             var grRack = new GlideRecord('cmdb_ci_rack');
             grRack.addQuery('sys_id', 'IN', tempRackSysIdArray);
             grRack.query();
@@ -55,12 +54,5 @@ var getSortedRackHardware = function (rackSysIdArray) {
         rackSysIdName: rackSysIdName
     };
 };
-var testRackSysIds = [
-    '14ef148a37bc7e40362896d543990ef4',
-    '46fb332a2b45820054a41bc5a8da15fa',
-    '163c772a2b45820054a41bc5a8da15f6',
-    '5e3c772a2b45820054a41bc5a8da15f6',
-];
-var foo = getSortedRackHardware(testRackSysIds); // remove this line
-// @ts-ignore
-gs.print(foo); // remove this line
+var testRackSysIds = ['14ef148a37bc7e40362896d543990ef4', '46fb332a2b45820054a41bc5a8da15fa', '163c772a2b45820054a41bc5a8da15f6', '5e3c772a2b45820054a41bc5a8da15f6'];
+gs.print(getSortedRackHardware(testRackSysIds));
