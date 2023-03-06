@@ -18,4 +18,7 @@ echo
 
 # copy script include without the line that runs the function (needed for eslint)
 echo "making rack_hardware.js"
-grep -v '// remove this line' rack_hardware.js > ../rack_hardware.js
+# 
+# keep this for when it's finally a script include
+# grep -v '// remove this line' rack_hardware.js > script_include.js
+# rm rack_hardware.js
