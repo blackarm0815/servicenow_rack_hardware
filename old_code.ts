@@ -1,0 +1,1260 @@
+// interface CiData {
+//   assignmentGroupName: null | string;
+//   assignmentGroupSysId: null | string;
+//   cmdbNetworkSecurityZone: null | string;
+//   cmdbStatus: null | string;
+//   fqdn: null | string;
+//   hardwareStatus: null | string;
+//   iPAddress: null | string;
+//   primaryBusinessServiceName: null | string;
+//   primaryBusinessServiceSysId: null | string;
+//   serviceGroupName: null | string;
+//   serviceGroupSysId: null | string;
+//   status: null | string;
+//   supportGroupName: null | string;
+//   supportGroupSysId: null | string;
+//   sysClassName: null | string;
+// }
+// interface Color {
+//   blue: number;
+//   green: number;
+//   red: number;
+// }
+// interface Hardware {
+//   assetTag: null | string;
+//   ciName: null | string;
+//   ciSysId: null | string;
+//   hardwareSkuSysId: null | string;
+//   lastPhysicalAudit: null | string;
+//   location: null | string;
+//   modelCategoryName: null | string;
+//   modelSysId: null | string;
+//   parent: null | string;
+//   provisioningBudgetCodeSysId: null | string;
+//   rackPosition: null | number;
+//   rackSysId: string;
+//   rackU: null | number;
+//   serialNumber: null | string;
+//   slot: null | number;
+//   state: null | string;
+//   substate: null | string;
+// }
+// interface Model {
+//   deviceCategory: null | string;
+//   displayName: null | string;
+//   endOfFirmwareSupportDate: null | string;
+//   endOfLife: null | string;
+//   endOfSale: null | string;
+//   maxChildren: null | number;
+//   modelHeight: null | number;
+//   modelName: null | string;
+// }
+// interface NetworkAdaptor {
+//   adaptorName: string;
+//   cmdbCiStatus: string;
+// }
+// interface Patchpanel {
+//   patchAssetTag: null | string;
+//   patchModelSysId: null | string;
+//   patchName: null | string;
+//   patchRackSysId: null | string;
+//   patchRackU: null | number;
+// }
+// interface RackMeta {
+//   dimensionX: null | number;
+//   dimensionY: null | number;
+//   dimensionZ: null | number;
+//   dimensionZUnitStart: null | number;
+//   environment: null | string;
+//   locationX: null | number;
+//   locationY: null | number;
+//   locationZ: null | number;
+//   powerAverageKw: null | number;
+//   powerDesignKw: null | number;
+//   powerMaximumKw: null | number;
+//   powerUpdated: null | number;
+//   rackState: null | string;
+//   rotation: null | number;
+// }
+// interface Reservation {
+//   jiraUrl: null | string;
+//   reservationExpires: null | number;
+//   reservationMade: null | number;
+//   reservationType: string;
+//   userName: null | string;
+// }
+
+
+
+  // const checkTime = (
+  //   testVariable: any,
+  // ) => {
+  //   // @ts-ignore
+  //   const tempTime: number | null = new GlideDateTime(testVariable).getNumericValue();
+  //   if (tempTime !== 0) {
+  //     // @ts-ignore
+  //     return tempTime;
+  //   }
+  //   return null;
+  // };
+
+  // const checkFloat = (
+  //   testVariable: any,
+  // ) => {
+  //   if (typeof testVariable === 'string') {
+  //     if (!Number.isNaN(parseFloat(testVariable))) {
+  //       return parseFloat(testVariable);
+  //     }
+  //   }
+  //   return null;
+  // };
+
+
+
+
+
+
+  //
+  // not returned to client, just for queries
+  //
+  // group sys_ids
+  const groupsUnique: Record<string, boolean> = {};
+  // alm_hardware sys_ids
+  const hardwareSysIdUnique: Record<string, boolean> = {};
+  // manager sys_user sys_ids
+  const managerSysIdUnique: Record<string, boolean> = {};
+  // cmdb_model sys_ids
+  const modelSysIdUnique: Record<string, boolean> = {};
+  // u_dc_rack_metadata sys_ids
+  const rackMetaSysIdUnique: Record<string, boolean> = {};
+  // cmdb_ci_service sys_ids
+  const serviceSysIdUnique: Record<string, boolean> = {};
+  // u_hardware_sku_configurations sys_ids
+  const skuSysIdUnique: Record<string, boolean> = {};
+  // switches ci sys_ids, used for network adaptor queries
+  const switchCiUnique: Record<string, boolean> = {};
+  //
+  // returned to client
+  //
+  // cmdb_ci_hardware sys_id, data from cmdb_ci_hardware
+  const ciData: Record<string, CiData> = {};
+  // unique cmdb_ci_hardware sys_id, passed to client side for change and incident queries
+  const ciSysIdUnique: Record<string, boolean> = {};
+  // sleds that are in a collision
+  // alm_hardware sys_id, true
+  const collisionSled: Record<string, boolean> = {};
+  // hardware that is in a collision
+  // alm_hardware sys_id, true
+  const collisionHardware: Record<string, boolean> = {};
+  // patchpanels that are in a collision
+  // u_patch_panel sys_id, true
+  const collisionPatchpanel: Record<string, boolean> = {};
+  // group sys_id to manager sys_id
+  // sys_user_group sys_id, sys_user sys_id
+  // related to managerSysIdName
+  const groupSysIdManagerSysId: Record<string, string> = {};
+  // rack sys_id, hardware sys_id, true
+  const hardwareBadData: Record<string, Record<string, boolean>> = {};
+  // actual hardware data from alm_hardware
+  const hardwareData: Record<string, Hardware> = {};
+  // chassis sys_id, network card sys_id, true
+  const hardwareChassisNetwork: Record<string, Record<string, boolean>> = {};
+  // chassis sys_id, sled sys_id, true
+  const hardwareChassisSled: Record<string, Record<string, boolean>> = {};
+  // rack sys_id, pdu hardware sys_id, true
+  const hardwarePdu: Record<string, Record<string, boolean>> = {};
+  // rack sys_id, hardware sys_id, true
+  const hardwareRackMounted: Record<string, Record<string, boolean>> = {};
+  // reasons why hardware failed the various tests
+  // hardware sys_id, array of failures
+  const hardwareSortResult: Record<string, Array<string>> = {};
+  // u_hardware_sku_configurations sys_id, derate kw as float
+  const hardwareSkuSysIdDerateKw: Record<string, number> = {};
+  // u_hardware_sku_configurations sys_id, name
+  const hardwareSkuSysIdName: Record<string, string> = {};
+  // sys_user sys_id, manager name string
+  // related to groupSysIdManagerSysId
+  const managerSysIdName: Record<string, string> = {};
+  // cmdb_model sys_id, data from cmdb_model
+  const modelData: Record<string, Model> = {};
+  // cmdb_ci_network_adapter ports on switches in the racks
+  // first key is switch alm_hardware sys_id
+  // second key is adaaptors cmdb_ci_network_adapter sys_id
+  const networkAdaptorsLocal: Record<string, Record<string, NetworkAdaptor>> = {};
+  // cmdb_ci_network_adapter ports on other machiens that connect to switches in the racks
+  // first key is switch alm_hardware sys_id
+  // second key is the cmdb_ci_network_adapter sys_id of the port on the switch
+  // third key is the cmdb_ci_network_adapter sys_id of the remote port (allows duplicates)
+  const networkAdaptorsRemote: Record<string, Record<string, Record<string, NetworkAdaptor>>> = {};
+  // first key is ci sys_id from alm_hardware
+  // second key is rack sys_id
+  // this is used when finding the network environment of racks
+  const netEnvCiSysIdRackSysId: Record<string, string> = {};
+  // first key is cmdb_ci_rack sys_id
+  // second key is u_patch_panel sys_id
+  // true if patchpanel is bad data
+  const patchpanelBadData: Record<string, Record<string, boolean>> = {};
+  // key is u_patch_panel sys_id
+  // value is patchpanel data
+  const patchpanelData: Record<string, Patchpanel> = {};
+  // first key is cmdb_ci_rack sys_id
+  // second key is u_patch_panel sys_id of patchpanel in rack
+  // boolean only true
+  const patchpanelRackMounted: Record<string, Record<string, boolean>> = {};
+  // reasons why patchpanels ended up in patchpanelBadData
+  // key is u_patch_panel sys_id
+  // value is failure
+  // unlike hardwareSortResult this does not have an array of failures
+  // since patchpanels only have one test
+  const patchpanelSortResult: Record<string, string> = {};
+  // key is cmdb_ci_service sys_id
+  // value is u_ci_business_service_rollup name
+  const primaryBusinessProduct: Record<string, string> = {};
+  // a color for each rack. the colors are generated client side.
+  // key is cmdb_ci_rack sys_id
+  const rackColor: Record<string, Color> = {};
+  // data from cmdb_ci_rack
+  // key is cmdb_ci_rack sys_id
+  const rackData: Record<string, Rack> = {};
+  // data from u_dc_rack_metadata
+  // key is u_dc_rack_metadata sys_id
+  const rackMetaData: Record<string, RackMeta> = {};
+  // key is rack name from cmdb_ci_rack
+  // value is cmdb_ci_rack sys_id
+  const rackNameRackSysId: Record<string, string> = {};
+  // rack reservations
+  // key is cmdb_ci_rack sys_id
+  // second key is u_reservation_rack sys_id
+  const rackReservation: Record<string, Record<string, Reservation>> = {};
+  // rack network environments (from switches in racks)
+  // first key is cmdb_ci_rack sys_id
+  // second key is u_cmdb_ci_network_environment name
+  const rackSysIdNetEnv: Record<string, string> = {};
+  // key is cmdb_ci_rack sys_id
+  // value is cmdb_ci_rack name
+  const rackSysIdRackName: Record<string, string> = {};
+  // first key is cmdb_ci_rack sys_id
+  // second key is the unit number
+  // third key is u_reservation_rack_unit sys_id (allows multiple per unit)
+  const rackUnitReservation: Record<string, Record<number, Record<string, Reservation>>> = {};
+  // key is ci sys_id
+  // if hardware's ci appears in sc_req_item it indicates it is Pending hardware reclaim
+  const scReqItemCI: Record<string, boolean> = {};
+  // first key is chassis alm_hardware sys_id
+  // second key is slot number
+  // third key is reservation u_reservation_slot sys_id
+  const slotReservation: Record<string, Record<number, Record<string, Reservation>>> = {};
+  // first key is rack sys_id
+  // second key is unit as string
+  // third string is either alm_hardware or u_patch_panel sys_id
+  // value is the table (alm_hardware or u_patch_panel)
+  const usageUnits: Record<string, Record<string, Record<string, string>>> = {};
+  // first string is chassis alm_hardware sys_id
+  // second key is slot as string
+  // third key is sled alm_hardware sys_id
+  const usageSlots: Record<string, Record<string, Record<string, true>>> = {};
+  //
+  //
+  //
+  //
+  const errorLog = (
+    functionName: string,
+    errorMessage: string,
+  ) => {
+    // @ts-ignore
+    const testStringUndefined: string | undefined = gs.getUserName();
+    if (testStringUndefined !== undefined) {
+      let logMessage = `Error - function ${functionName} failed for `;
+      // @ts-ignore
+      logMessage += `${testStringUndefined} with error ${errorMessage}`;
+      // @ts-ignore
+      gs.error(logMessage, 'rack_view');
+      // @ts-ignore
+      gs.addErrorMessage(`Error encountered in function ${functionName}`, errorMessage);
+    }
+  };
+  const testValidChassisSled = (
+    tempHardwareSysId: string,
+  ) => {
+    const hardware = hardwareData[tempHardwareSysId];
+    try {
+      if (hardware.slot === null) {
+        return {
+          pass: false,
+          failReport: 'not a valid sled - slot missing',
+        };
+      }
+      if (hardware.slot === 0) {
+        return {
+          pass: false,
+          failReport: 'not a valid sled - slot is zero',
+        };
+      }
+      if (hardware.parent === null) {
+        return {
+          pass: false,
+          failReport: 'not a valid sled - parent missing',
+        };
+      }
+      if (!Object.prototype.hasOwnProperty.call(hardwareData, hardware.parent)) {
+        return {
+          pass: false,
+          failReport: 'not a valid sled - parent not found in hardwareData',
+        };
+      }
+      if (hardwareData[hardware.parent].rackSysId !== hardware.rackSysId) {
+        return {
+          pass: false,
+          failReport: 'not a valid sled - parent not in same rack',
+        };
+      }
+      return {
+        pass: true,
+        failReport: '',
+      };
+    } catch (err) {
+      errorLog('testValidChassisSled', <string>err);
+      return {
+        pass: false,
+        failReport: 'not a valid sled - function crashed',
+      };
+    }
+  };
+  const testValidRackMounted = (
+    hardwareSysId: string,
+  ) => {
+    const hardware = hardwareData[hardwareSysId];
+    try {
+      if (hardware.parent !== null) {
+        return {
+          pass: false,
+          failReport: 'not a valid rack mounted - has a parent',
+        };
+      }
+      if (hardware.rackU === null) {
+        return {
+          pass: false,
+          failReport: 'not a valid  rack mounted - u_rack_u is missing',
+        };
+      }
+      if (hardware.rackU === 0) {
+        return {
+          pass: false,
+          failReport: 'not a valid  rack mounted - u_rack_u is zero',
+        };
+      }
+      if (hardware.modelSysId === null) {
+        return {
+          pass: false,
+          failReport: 'not a valid  rack mounted - does not have a model',
+        };
+      }
+      if (!Object.prototype.hasOwnProperty.call(modelData, hardware.modelSysId)) {
+        return {
+          pass: false,
+          failReport: 'not a valid  rack mounted - model not found',
+        };
+      }
+      if (modelData[hardware.modelSysId].modelHeight === null) {
+        return {
+          pass: false,
+          failReport: 'not a valid  rack mounted - model height is missing',
+        };
+      }
+      if (modelData[hardware.modelSysId].modelHeight === 0) {
+        return {
+          pass: false,
+          failReport: 'not a valid  rack mounted - model height is zero',
+        };
+      }
+      return {
+        pass: true,
+        failReport: '',
+      };
+    } catch (err) {
+      errorLog('testValidRackMounted', <string>err);
+      return {
+        pass: false,
+        failReport: 'not a valid rack mounted - function crashed',
+      };
+    }
+  };
+  const testValidPatchpanel = (
+    patchpanelSysId: string,
+  ) => {
+    const patchpanel = patchpanelData[patchpanelSysId];
+    try {
+      if (patchpanel.patchRackU === null) {
+        return {
+          pass: false,
+          failReport: 'not a valid  patchpanel - u_rack_u is missing',
+        };
+      }
+      if (patchpanel.patchRackU === 0) {
+        return {
+          pass: false,
+          failReport: 'not a valid  patchpanel - u_rack_u is zero',
+        };
+      }
+      if (patchpanel.patchModelSysId === null) {
+        return {
+          pass: false,
+          failReport: 'not a valid patchpanel - does not have a model',
+        };
+      }
+      if (!Object.prototype.hasOwnProperty.call(modelData, patchpanel.patchModelSysId)) {
+        return {
+          pass: false,
+          failReport: 'not a valid patchpanel - model not found',
+        };
+      }
+      const model: Model = modelData[patchpanel.patchModelSysId];
+      if (model.modelHeight === null) {
+        return {
+          pass: false,
+          failReport: 'not a valid patchpanel - model height missing',
+        };
+      }
+      if (model.modelHeight < 1) {
+        return {
+          pass: false,
+          failReport: 'not a valid patchpanel - model height is less than 1',
+        };
+      }
+      return {
+        pass: true,
+        failReport: '',
+      };
+    } catch (err) {
+      errorLog('testValidPatchpanel', <string>err);
+      return {
+        pass: false,
+        failReport: 'not a valid patchpanel - function crashed',
+      };
+    }
+  };
+  const testValidChassisNetwork = (
+    hardwareSysId: string,
+  ) => {
+    const hardware = hardwareData[hardwareSysId];
+    try {
+      if (hardware.parent === null) {
+        return {
+          pass: false,
+          failReport: 'not valid network gear - no parent',
+        };
+      }
+      if (!Object.prototype.hasOwnProperty.call(hardwareData, hardware.parent)) {
+        return {
+          pass: false,
+          failReport: 'not valid network gear - parent not found in hardwareData',
+        };
+      }
+      if (hardwareData[hardware.parent].rackSysId !== hardware.rackSysId) {
+        return {
+          pass: false,
+          failReport: 'not valid network gear - parent not in the same rack',
+        };
+      }
+      if (hardware.modelCategoryName !== 'Network Gear') {
+        return {
+          pass: false,
+          failReport: 'not valid network gear - model category is not network gear',
+        };
+      }
+      return {
+        pass: true,
+        failReport: '',
+      };
+    } catch (err) {
+      errorLog('testValidChassisNetwork', <string>err);
+      return {
+        pass: false,
+        failReport: 'not valid network gear - function crashed',
+      };
+    }
+  };
+  const storePatchpanelBadData = (
+    patchpanelSysId: string,
+    rackSysId: string,
+  ) => {
+    if (!Object.prototype.hasOwnProperty.call(patchpanelBadData, rackSysId)) {
+      patchpanelBadData[rackSysId] = {};
+    }
+    patchpanelBadData[rackSysId][patchpanelSysId] = true;
+  };
+  const generateUsageUnits = (
+    modelHeight: number,
+    rackSysId: string,
+    rackU: number,
+    sysId: string,
+    table: string,
+  ) => {
+    for (let loop = 0; loop < modelHeight; loop += 1) {
+      const unitString = (rackU + loop).toString();
+      // generate usage
+      if (!Object.prototype.hasOwnProperty.call(usageUnits, rackSysId)) {
+        usageUnits[rackSysId] = {};
+      }
+      if (!Object.prototype.hasOwnProperty.call(usageUnits[rackSysId], unitString)) {
+        usageUnits[rackSysId][unitString] = {};
+      }
+      usageUnits[rackSysId][unitString][sysId] = table;
+      // deal with duplicates
+      if (Object.keys(usageUnits[rackSysId][unitString]).length > 1) {
+        Object.keys(usageUnits[rackSysId][unitString]).forEach((collisionSysId) => {
+          // alm_hardware or u_patch_panel
+          if (usageUnits[rackSysId][unitString][collisionSysId] === 'alm_hardware') {
+            collisionHardware[collisionSysId] = true;
+          }
+          if (usageUnits[rackSysId][unitString][collisionSysId] === 'u_patch_panel') {
+            collisionPatchpanel[collisionSysId] = true;
+          }
+        });
+      }
+    }
+  };
+  const testPatchPanel = (
+    patchpanelSysId: string,
+  ) => {
+    const patchpanel = patchpanelData[patchpanelSysId];
+    const rackSysId = patchpanel.patchRackSysId;
+    const rackU = patchpanel.patchRackU;
+    const sortResult = testValidPatchpanel(patchpanelSysId);
+    if (rackSysId !== null) {
+      if (sortResult.pass && rackU !== null) {
+        if (!Object.prototype.hasOwnProperty.call(patchpanelRackMounted, rackSysId)) {
+          patchpanelRackMounted[rackSysId] = {};
+        }
+        patchpanelRackMounted[rackSysId][patchpanelSysId] = true;
+        // generate usageUnits for collision testing
+        let modelHeight = 0;
+        const modelSysId = patchpanel.patchModelSysId;
+        if (modelSysId !== null) {
+          if (Object.prototype.hasOwnProperty.call(modelData, modelSysId)) {
+            const testModelHeight = modelData[modelSysId].modelHeight;
+            if (testModelHeight !== null) {
+              modelHeight = testModelHeight;
+            }
+          }
+        }
+        generateUsageUnits(
+          modelHeight,
+          rackSysId,
+          rackU,
+          patchpanelSysId,
+          'u_patch_panel',
+        );
+      } else {
+        patchpanelSortResult[patchpanelSysId] = sortResult.failReport;
+        storePatchpanelBadData(
+          patchpanelSysId,
+          rackSysId,
+        );
+      }
+    }
+  };
+  const storeHardwareBadData = (
+    hardwareSysId: string,
+  ) => {
+    const hardware = hardwareData[hardwareSysId];
+    const { rackSysId } = hardware;
+    if (!Object.prototype.hasOwnProperty.call(hardwareBadData, rackSysId)) {
+      hardwareBadData[rackSysId] = {};
+    }
+    hardwareBadData[rackSysId][hardwareSysId] = true;
+  };
+  const testPdu = (
+    hardwareSysId: string,
+  ) => {
+    const hardware = hardwareData[hardwareSysId];
+    const { rackSysId } = hardware;
+    if (hardware.modelCategoryName === 'PDU') {
+      if (!Object.prototype.hasOwnProperty.call(hardwarePdu, rackSysId)) {
+        hardwarePdu[rackSysId] = {};
+      }
+      hardwarePdu[rackSysId][hardwareSysId] = true;
+    } else {
+      hardwareSortResult[hardwareSysId].push('modelCategoryName was not PDU');
+      storeHardwareBadData(hardwareSysId);
+    }
+  };
+  const testNetworkCards = (
+    hardwareSysId: string,
+  ) => {
+    const sortResult = testValidChassisNetwork(hardwareSysId);
+    const chassisSysId = hardwareData[hardwareSysId].parent;
+    if (sortResult.pass && chassisSysId !== null) {
+      if (!Object.prototype.hasOwnProperty.call(hardwareChassisNetwork, chassisSysId)) {
+        hardwareChassisNetwork[chassisSysId] = {};
+      }
+      hardwareChassisNetwork[chassisSysId][hardwareSysId] = true;
+    } else {
+      hardwareSortResult[hardwareSysId].push(sortResult.failReport);
+      testPdu(hardwareSysId);
+    }
+  };
+  const testRackMounted = (
+    hardwareSysId: string,
+  ) => {
+    const sortResult = testValidRackMounted(hardwareSysId);
+    const { modelSysId } = hardwareData[hardwareSysId];
+    const { rackSysId } = hardwareData[hardwareSysId];
+    const { rackU } = hardwareData[hardwareSysId];
+    if (sortResult.pass && rackU !== null) {
+      if (!Object.prototype.hasOwnProperty.call(hardwareRackMounted, rackSysId)) {
+        hardwareRackMounted[rackSysId] = {};
+      }
+      hardwareRackMounted[rackSysId][hardwareSysId] = true;
+      // generate usageUnits for collision testing
+      let modelHeight = 0;
+      if (modelSysId !== null) {
+        if (Object.prototype.hasOwnProperty.call(modelData, modelSysId)) {
+          const testModelHeight = modelData[modelSysId].modelHeight;
+          if (testModelHeight !== null) {
+            modelHeight = testModelHeight;
+          }
+        }
+      }
+      generateUsageUnits(
+        modelHeight,
+        rackSysId,
+        rackU,
+        hardwareSysId,
+        'alm_hardware',
+      );
+    } else {
+      hardwareSortResult[hardwareSysId].push(sortResult.failReport);
+      // test for network cards
+      testNetworkCards(hardwareSysId);
+    }
+  };
+  const generateUsageSlots = (
+    sledSysId: string,
+    testParent: string,
+    testSlot: number,
+  ) => {
+    const slotString = testSlot.toString();
+    // generate usage
+    if (!Object.prototype.hasOwnProperty.call(usageSlots, testParent)) {
+      usageSlots[testParent] = {};
+    }
+    if (!Object.prototype.hasOwnProperty.call(usageSlots[testParent], slotString)) {
+      usageSlots[testParent][slotString] = {};
+    }
+    usageSlots[testParent][slotString][sledSysId] = true;
+    // deal with duplicates
+    if (Object.keys(usageSlots[testParent][slotString]).length > 1) {
+      Object.keys(usageSlots[testParent][slotString]).forEach((collisionSledSysId) => {
+        collisionSled[collisionSledSysId] = true;
+      });
+    }
+  };
+  const testSleds = (
+    hardwareSysId: string,
+  ) => {
+    const sortResult = testValidChassisSled(hardwareSysId);
+    const testParent = hardwareData[hardwareSysId].parent;
+    const testSlot = hardwareData[hardwareSysId].slot;
+    if (sortResult.pass && testParent !== null && testSlot !== null) {
+      // valid sled detected
+      if (!Object.prototype.hasOwnProperty.call(hardwareChassisSled, testParent)) {
+        hardwareChassisSled[testParent] = {};
+      }
+      hardwareChassisSled[testParent][hardwareSysId] = true;
+      generateUsageSlots(
+        hardwareSysId,
+        testParent,
+        testSlot,
+      );
+    } else {
+      hardwareSortResult[hardwareSysId].push(sortResult.failReport);
+      testRackMounted(hardwareSysId);
+    }
+  };
+  const calculateSortedHardware = () => {
+    let ignore: boolean;
+    Object.keys(hardwareData).forEach((hardwareSysId) => {
+      // create array to store sort failures
+      hardwareSortResult[hardwareSysId] = [];
+      const hardware = hardwareData[hardwareSysId];
+      const { rackSysId } = hardware;
+      if (rackSysId !== null) {
+        // ignore racks
+        ignore = false;
+        if (hardware.modelSysId !== null) {
+          if (Object.prototype.hasOwnProperty.call(modelData, hardware.modelSysId)) {
+            if (modelData[hardware.modelSysId].deviceCategory === 'Rack') {
+              ignore = true;
+              hardwareSortResult[hardwareSysId].push('it is a rack');
+            }
+          }
+        }
+        if (ignore === false) {
+          // start testing with sleds
+          testSleds(hardwareSysId);
+        }
+      }
+    });
+    Object.keys(patchpanelData).forEach((patchpanelSysId) => {
+      testPatchPanel(patchpanelSysId);
+    });
+    // @ts-ignore
+    data.hardwareBadData = hardwareBadData;
+    // @ts-ignore
+    data.hardwareChassisNetwork = hardwareChassisNetwork;
+    // @ts-ignore
+    data.hardwareChassisSled = hardwareChassisSled;
+    // @ts-ignore
+    data.hardwareData = hardwareData;
+    // @ts-ignore
+    data.hardwarePdu = hardwarePdu;
+    // @ts-ignore
+    data.hardwareRackMounted = hardwareRackMounted;
+    // @ts-ignore
+    data.hardwareSortResult = hardwareSortResult;
+    // @ts-ignore
+    data.patchpanelData = patchpanelData;
+    // @ts-ignore
+    data.patchpanelBadData = patchpanelBadData;
+    // @ts-ignore
+    data.patchpanelRackMounted = patchpanelRackMounted;
+    // @ts-ignore
+    data.patchpanelSortResult = patchpanelSortResult;
+  };
+
+  const getRackZoneData = () => {
+    let child: null | string;
+    let parent: null | string;
+    const rackSysIdRowSysId: Record<string, string> = {};
+    const rowNameRowSysId: Record<string, string> = {};
+    const rowNameRackNameList: Record<string, Array<string>> = {};
+    const rowSysIdRackSysIds: Record<string, Record<string, boolean>> = {};
+    const rowSysIdRoomSysId: Record<string, string> = {};
+    const rowSysIdRowName: Record<string, string> = {};
+    const rowSysIdUnique: Record<string, boolean> = {};
+    // @ts-ignore
+    const grRackToRow = new GlideRecord('cmdb_rel_ci');
+    grRackToRow.addQuery('child', 'IN', Object.keys(rackSysIdRackName));
+    grRackToRow.query();
+    while (grRackToRow.next()) {
+      // test
+      child = checkString(grRackToRow.child.getValue());
+      parent = checkString(grRackToRow.parent.getValue());
+      // store
+      if (child !== null && parent !== null) {
+        rackSysIdRowSysId[child] = parent;
+        rowSysIdUnique[parent] = true;
+        // build zone rack relationships
+        if (!Object.prototype.hasOwnProperty.call(rowSysIdRackSysIds, parent)) {
+          rowSysIdRackSysIds[parent] = {};
+        }
+        rowSysIdRackSysIds[parent][child] = true;
+      }
+    }
+    if (Object.keys(rowSysIdUnique).length > 0) {
+      // @ts-ignore
+      const grRowData = new GlideRecord('cmdb_ci_zone');
+      grRowData.addQuery('sys_id', 'IN', Object.keys(rowSysIdUnique));
+      grRowData.query();
+      while (grRowData.next()) {
+        const tempZoneSysId = checkString(grRowData.getUniqueValue());
+        const zoneName = checkString(grRowData.name.getValue());
+        if (tempZoneSysId !== null && zoneName !== null) {
+          rowNameRowSysId[zoneName] = tempZoneSysId;
+          rowSysIdRowName[tempZoneSysId] = zoneName;
+        }
+      }
+    }
+    // get the relationships between zones and rooms
+    // this is used for the 3d button
+    if (Object.keys(rowSysIdUnique).length > 0) {
+      // @ts-ignore
+      const grRowToRoom = new GlideRecord('cmdb_rel_ci');
+      grRowToRoom.addQuery('child', 'IN', Object.keys(rowSysIdUnique));
+      grRowToRoom.query();
+      while (grRowToRoom.next()) {
+        // test
+        child = checkString(grRowToRoom.child.getValue());
+        parent = checkString(grRowToRoom.parent.getValue());
+        // store
+        if (child !== null && parent !== null) {
+          rowSysIdRoomSysId[child] = parent;
+        }
+      }
+    }
+    // build object where the key is the row name and the value is a list of rack names
+    // have a 'Row missing' backup for orphan racks (client side will handle it)
+    Object.keys(rackSysIdRackName).forEach((rackSysId) => {
+      const rackName = rackSysIdRackName[rackSysId];
+      let tempRowName = 'Row missing';
+      if (Object.prototype.hasOwnProperty.call(rackSysIdRowSysId, rackSysId)) {
+        const tempRowSysId = rackSysIdRowSysId[rackSysId];
+        if (Object.prototype.hasOwnProperty.call(rowSysIdRowName, tempRowSysId)) {
+          tempRowName = rowSysIdRowName[tempRowSysId];
+        }
+      }
+      if (!Object.prototype.hasOwnProperty.call(rowNameRackNameList, tempRowName)) {
+        rowNameRackNameList[tempRowName] = [];
+      }
+      rowNameRackNameList[tempRowName].push(rackName);
+    });
+    // @ts-ignore
+    data.rackSysIdRowSysId = rackSysIdRowSysId;
+    // @ts-ignore
+    data.rowNameRackNameList = rowNameRackNameList;
+    // @ts-ignore
+    data.rowNameRowSysId = rowNameRowSysId;
+    // @ts-ignore
+    data.rowSysIdRoomSysId = rowSysIdRoomSysId;
+  };
+  const getData = (
+    rackSysIdList: Array<string>,
+  ) => {
+      getRackZoneData();
+      // @ts-ignore
+      const grRackMeta = new GlideRecord('u_dc_rack_metadata');
+      grRackMeta.addQuery('sys_id', 'IN', Object.keys(rackMetaSysIdUnique));
+      grRackMeta.query();
+      while (grRackMeta.next()) {
+        const tempMetaSysId: string = grRackMeta.getUniqueValue();
+        rackMetaData[tempMetaSysId] = {
+          dimensionX: checkFloat(grRackMeta.u_dimension_x.getValue()),
+          dimensionY: checkFloat(grRackMeta.u_dimension_y.getValue()),
+          dimensionZ: checkFloat(grRackMeta.u_dimension_z.getValue()),
+          dimensionZUnitStart: checkFloat(grRackMeta.u_dimension_z_unit_start.getValue()),
+          environment: checkString(grRackMeta.u_environment.getDisplayValue()),
+          locationX: checkFloat(grRackMeta.u_location_x.getValue()),
+          locationY: checkFloat(grRackMeta.u_location_y.getValue()),
+          locationZ: checkFloat(grRackMeta.u_location_z.getValue()),
+          powerAverageKw: checkFloat(grRackMeta.u_power_average_kw.getValue()),
+          powerMaximumKw: checkFloat(grRackMeta.u_power_maximum_kw.getValue()),
+          powerDesignKw: checkFloat(grRackMeta.u_power_design_kw.getValue()),
+          powerUpdated: checkTime(grRackMeta.u_power_updated.getValue()),
+          rackState: checkString(grRackMeta.u_state.getDisplayValue()),
+          rotation: checkInteger(grRackMeta.u_rotation.getValue()),
+        };
+      }
+      // @ts-ignore
+      const grResRack = new GlideRecord('u_reservation_rack');
+      grResRack.addQuery('u_rack', 'IN', rackSysIdList);
+      grResRack.addEncodedQuery('u_reservation_ends>=javascript:gs.beginningOfToday()');
+      grResRack.query();
+      while (grResRack.next()) {
+        // safe
+        const tempRackResSysId: string = grResRack.getUniqueValue();
+        // test
+        tempRackSysId = checkString(grResRack.u_rack.getValue());
+        // store
+        if (tempRackSysId !== null) {
+          if (!Object.prototype.hasOwnProperty.call(rackReservation, tempRackSysId)) {
+            rackReservation[tempRackSysId] = {};
+          }
+          if (tempRackResSysId !== null) {
+            rackReservation[tempRackSysId][tempRackResSysId] = {
+              jiraUrl: checkJiraUrl(grResRack.u_jira_url.getValue()),
+              reservationMade: checkTime(grResRack.sys_created_on.getValue()),
+              reservationExpires: checkTime(grResRack.u_reservation_ends.getValue()),
+              reservationType: 'rack',
+              userName: checkString(grResRack.sys_created_by.getValue()),
+            };
+          }
+        }
+      }
+      // @ts-ignore
+      const grResUnit = new GlideRecord('u_reservation_rack_unit');
+      grResUnit.addQuery('u_rack', 'IN', rackSysIdList);
+      grResUnit.addEncodedQuery('u_reservation_ends>=javascript:gs.beginningOfToday()');
+      grResUnit.query();
+      while (grResUnit.next()) {
+        // safe
+        const tempUnitResSysId: string = grResUnit.getUniqueValue();
+        // test
+        tempRackSysId = checkString(grResUnit.u_rack.getValue());
+        tempRackUnit = checkInteger(grResUnit.u_rack_unit.getValue());
+        // store
+        if (tempRackSysId !== null && tempRackUnit !== null) {
+          if (!Object.prototype.hasOwnProperty.call(rackUnitReservation, tempRackSysId)) {
+            rackUnitReservation[tempRackSysId] = {};
+          }
+          if (!Object.prototype.hasOwnProperty.call(rackUnitReservation[tempRackSysId], tempRackUnit)) {
+            rackUnitReservation[tempRackSysId][tempRackUnit] = {};
+          }
+          rackUnitReservation[tempRackSysId][tempRackUnit][tempUnitResSysId] = {
+            jiraUrl: checkJiraUrl(grResUnit.u_jira_url.getValue()),
+            reservationMade: checkTime(grResUnit.sys_created_on.getValue()),
+            reservationExpires: checkTime(grResUnit.u_reservation_ends.getValue()),
+            reservationType: 'unit',
+            userName: checkString(grResUnit.sys_created_by.getValue()),
+          };
+        }
+      }
+      // @ts-ignore
+      const grHardware = new GlideRecord('alm_hardware');
+      grHardware.addQuery('u_rack', 'IN', rackSysIdList);
+      grHardware.query();
+      while (grHardware.next()) {
+        // used as keys
+        const tempHardwareSysId = checkString(grHardware.getUniqueValue());
+        const tempCiSysId = checkString(grHardware.ci.getValue());
+        const tempCiName = checkString(grHardware.ci.getDisplayValue());
+        const tempModelSysId = checkString(grHardware.model.getValue());
+        const hardRackSysId = checkString(grHardware.u_rack.getValue());
+        const tempSkuSysId = checkString(grHardware.u_hardware_sku.getValue());
+        // store
+        if (tempHardwareSysId !== null && hardRackSysId !== null) {
+          hardwareData[tempHardwareSysId] = {
+            assetTag: checkString(grHardware.asset_tag.getValue()),
+            ciSysId: tempCiSysId,
+            ciName: tempCiName,
+            hardwareSkuSysId: tempSkuSysId,
+            lastPhysicalAudit: checkString(grHardware.u_last_physical_audit.getValue()),
+            location: checkString(grHardware.location.getDisplayValue()),
+            modelCategoryName: checkString(grHardware.model_category.getDisplayValue()),
+            modelSysId: tempModelSysId,
+            parent: checkString(grHardware.parent.getValue()),
+            provisioningBudgetCodeSysId: checkString(grHardware.u_provisioning_budget_code.getValue()),
+            rackSysId: hardRackSysId,
+            rackPosition: checkInteger(grHardware.u_rack_position.getValue()),
+            rackU: checkInteger(grHardware.u_rack_u.getValue()),
+            serialNumber: checkString(grHardware.serial_number.getValue()),
+            slot: checkInteger(grHardware.u_slot.getValue()),
+            state: checkString(grHardware.install_status.getDisplayValue()),
+            substate: checkString(grHardware.substatus.getValue()),
+          };
+          if (hardRackSysId !== null) {
+            hardwareSysIdUnique[tempHardwareSysId] = true;
+          }
+          if (tempCiSysId !== null) {
+            ciSysIdUnique[tempCiSysId] = true;
+          }
+          if (tempSkuSysId !== null) {
+            skuSysIdUnique[tempSkuSysId] = true;
+          }
+          if (tempModelSysId !== null) {
+            modelSysIdUnique[tempModelSysId] = true;
+          }
+          // store leaf switches for network environment query
+          if (tempCiSysId !== null && hardRackSysId !== null) {
+            if (tempCiName !== null && tempCiName.startsWith('LFAS')) {
+              netEnvCiSysIdRackSysId[tempCiSysId] = hardRackSysId;
+            }
+          }
+        }
+      }
+      if (Object.keys(netEnvCiSysIdRackSysId).length > 0) {
+        // @ts-ignore
+        const grNetEnv = new GlideRecord('cmdb_ci_ip_switch');
+        grNetEnv.addQuery('sys_id', 'IN', Object.keys(netEnvCiSysIdRackSysId));
+        grNetEnv.addNotNullQuery('u_network_environment');
+        grNetEnv.query();
+        while (grNetEnv.next()) {
+          // safe
+          const testNetEnvCiSysId = checkString(grNetEnv.getUniqueValue());
+          const testNetEnvName = checkString(grNetEnv.u_network_environment.getDisplayValue());
+          if (testNetEnvCiSysId !== null && testNetEnvName !== null) {
+            // find the rack sys_id
+            if (Object.prototype.hasOwnProperty.call(netEnvCiSysIdRackSysId, testNetEnvCiSysId)) {
+              const netEnvRackSysId = netEnvCiSysIdRackSysId[testNetEnvCiSysId];
+              // store
+              rackSysIdNetEnv[netEnvRackSysId] = testNetEnvName;
+            }
+          }
+        }
+      }
+      if (Object.keys(hardwareSysIdUnique).length > 0) {
+        // @ts-ignore
+        const grResSlot = new GlideRecord('u_reservation_slot');
+        grResSlot.addQuery('u_chassis', 'IN', Object.keys(hardwareSysIdUnique));
+        grResSlot.query();
+        while (grResSlot.next()) {
+          const tempResSlotSysId = checkString(grResSlot.getUniqueValue());
+          const tempSlot = checkInteger(grResSlot.u_slot.getValue());
+          const tempChassisSysId = checkString(grResSlot.u_chassis.getValue());
+          if (tempChassisSysId !== null && tempResSlotSysId !== null) {
+            if (!Object.prototype.hasOwnProperty.call(slotReservation, tempChassisSysId)) {
+              slotReservation[tempChassisSysId] = {};
+            }
+            if (tempSlot !== null) {
+              if (!Object.prototype.hasOwnProperty.call(slotReservation[tempChassisSysId], tempSlot)) {
+                slotReservation[tempChassisSysId][tempSlot] = {};
+              }
+              slotReservation[tempChassisSysId][tempSlot][tempResSlotSysId] = {
+                jiraUrl: checkJiraUrl(grResSlot.u_jira_url.getValue()),
+                reservationMade: checkTime(grResSlot.sys_created_on.getValue()),
+                reservationExpires: checkTime(grResSlot.u_reservation_ends.getValue()),
+                reservationType: 'slot',
+                userName: checkString(grResSlot.sys_created_by.getValue()),
+              };
+            }
+          }
+        }
+      }
+      if (Object.keys(skuSysIdUnique).length > 0) {
+        // @ts-ignore
+        const grHardwareSku = new GlideRecord('u_hardware_sku_configurations');
+        grHardwareSku.addQuery('sys_id', 'IN', Object.keys(skuSysIdUnique));
+        grHardwareSku.query();
+        while (grHardwareSku.next()) {
+          const derateKw = checkFloat(grHardwareSku.u_derate_kw.getValue());
+          const hardwareSkuName = checkString(grHardwareSku.u_sku_name.getValue());
+          const tempSkuSysId = checkString(grHardwareSku.getUniqueValue());
+          if (hardwareSkuName !== null && tempSkuSysId !== null) {
+            hardwareSkuSysIdName[tempSkuSysId] = hardwareSkuName;
+          }
+          if (derateKw !== null && tempSkuSysId !== null) {
+            hardwareSkuSysIdDerateKw[tempSkuSysId] = derateKw;
+          }
+        }
+      }
+      if (Object.keys(ciSysIdUnique).length > 0) {
+        // @ts-ignore
+        const grCiHardware = new GlideRecord('cmdb_ci_hardware');
+        grCiHardware.addQuery('sys_id', 'IN', Object.keys(ciSysIdUnique));
+        grCiHardware.query();
+        while (grCiHardware.next()) {
+          const tempAssignmentGroupSysId = checkString(grCiHardware.assignment_group.getValue());
+          const tempCiSysId = checkString(grCiHardware.getUniqueValue());
+          const tempCmdbStatus = checkString(grCiHardware.u_cmdb_ci_status.getDisplayValue());
+          const tempPrimaryBusinessServiceSysId = checkString(grCiHardware.u_cmdb_ci_service.getValue());
+          const tempServiceGroupSysId = checkString(grCiHardware.u_patching_group.getValue());
+          const tempSysClassName = checkString(grCiHardware.sys_class_name.getValue());
+          if (tempCiSysId !== null) {
+            ciData[tempCiSysId] = {
+              assignmentGroupName: checkString(grCiHardware.assignment_group.getDisplayValue()),
+              assignmentGroupSysId: tempAssignmentGroupSysId,
+              cmdbNetworkSecurityZone: checkString(grCiHardware.u_cmdb_network_security_zone.getDisplayValue()),
+              cmdbStatus: tempCmdbStatus,
+              fqdn: checkString(grCiHardware.fqdn.getDisplayValue()),
+              hardwareStatus: checkString(grCiHardware.hardware_status.getValue()),
+              iPAddress: checkString(grCiHardware.ip_address.getDisplayValue()),
+              primaryBusinessServiceName: checkString(grCiHardware.u_cmdb_ci_service.getDisplayValue()),
+              primaryBusinessServiceSysId: tempPrimaryBusinessServiceSysId,
+              serviceGroupName: checkString(grCiHardware.u_patching_group.getDisplayValue()),
+              serviceGroupSysId: tempServiceGroupSysId,
+              status: checkString(grCiHardware.install_status.getDisplayValue()),
+              supportGroupName: checkString(grCiHardware.support_group.getDisplayValue()),
+              supportGroupSysId: checkString(grCiHardware.support_group.getValue()),
+              sysClassName: tempSysClassName,
+            };
+            if (tempSysClassName === 'cmdb_ci_ip_switch' && tempCmdbStatus !== 'Retired') {
+              switchCiUnique[tempCiSysId] = true;
+            }
+          }
+          if (tempAssignmentGroupSysId !== null) {
+            groupsUnique[tempAssignmentGroupSysId] = true;
+          }
+          if (tempServiceGroupSysId !== null) {
+            groupsUnique[tempServiceGroupSysId] = true;
+          }
+          if (tempPrimaryBusinessServiceSysId !== null) {
+            serviceSysIdUnique[tempPrimaryBusinessServiceSysId] = true;
+          }
+        }
+      }
+      if (Object.keys(groupsUnique).length > 0) {
+        // @ts-ignore
+        const grGroup = new GlideRecord('sys_user_group');
+        grGroup.addQuery('sys_id', 'IN', Object.keys(groupsUnique));
+        grGroup.query();
+        while (grGroup.next()) {
+          const tempUserGroupSysId = checkString(grGroup.getUniqueValue());
+          const tempSserGroupManager = checkString(grGroup.manager.getValue());
+          // store
+          if (tempUserGroupSysId !== null && tempSserGroupManager !== null) {
+            groupSysIdManagerSysId[tempUserGroupSysId] = tempSserGroupManager;
+            managerSysIdUnique[tempSserGroupManager] = true;
+          }
+        }
+      }
+      if (Object.keys(managerSysIdUnique).length > 0) {
+        // @ts-ignore
+        const grManager = new GlideRecord('sys_user');
+        grManager.addQuery('sys_id', 'IN', Object.keys(managerSysIdUnique));
+        grManager.query();
+        while (grManager.next()) {
+          const tempSysUserName = checkString(grManager.name.getValue());
+          const tempUserSysId = checkString(grManager.getUniqueValue());
+          if (tempSysUserName !== null && tempUserSysId !== null) {
+            managerSysIdName[tempUserSysId] = tempSysUserName;
+          }
+        }
+      }
+      if (Object.keys(serviceSysIdUnique).length > 0) {
+        // @ts-ignore
+        const grPrimary = new GlideRecord('cmdb_ci_service');
+        grPrimary.addQuery('sys_id', 'IN', Object.keys(serviceSysIdUnique));
+        grPrimary.query();
+        while (grPrimary.next()) {
+          const tempServiceName = checkString(grPrimary.u_business_service_rollup.getDisplayValue());
+          const tempServiceSysId = checkString(grPrimary.getUniqueValue());
+          if (tempServiceName !== null && tempServiceSysId !== null) {
+            primaryBusinessProduct[tempServiceSysId] = tempServiceName;
+          }
+        }
+      }
+      if (Object.keys(ciSysIdUnique).length > 0) {
+        // @ts-ignore
+        const grScReqItem = new GlideRecord('sc_req_item');
+        grScReqItem.addQuery('cmdb_ci', 'IN', Object.keys(ciSysIdUnique));
+        grScReqItem.query();
+        while (grScReqItem.next()) {
+          const tempScReqItemCmdbCi = checkString(grScReqItem.cmdb_ci.getValue());
+          if (tempScReqItemCmdbCi !== null) {
+            scReqItemCI[tempScReqItemCmdbCi] = true;
+          }
+        }
+      }
+      // @ts-ignore
+      const grPatch = new GlideRecord('u_patch_panel');
+      grPatch.addQuery('u_rack', 'IN', rackSysIdList);
+      grPatch.query();
+      while (grPatch.next()) {
+        const tempPatchPanelSysId = checkString(grPatch.getUniqueValue());
+        const tempPatchModelSysId = checkString(grPatch.model_id.getValue());
+        if (tempPatchPanelSysId !== null) {
+          patchpanelData[tempPatchPanelSysId] = {
+            patchAssetTag: checkString(grPatch.asset_tag.getValue()),
+            patchModelSysId: tempPatchModelSysId,
+            patchName: checkString(grPatch.name.getValue()),
+            patchRackSysId: checkString(grPatch.u_rack.getValue()),
+            patchRackU: checkInteger(grPatch.u_rack_u.getValue()),
+          };
+        }
+        if (tempPatchModelSysId !== null) {
+          modelSysIdUnique[tempPatchModelSysId] = true;
+        }
+      }
+      if (Object.keys(modelSysIdUnique).length > 0) {
+        // @ts-ignore
+        const grModel = new GlideRecord('cmdb_model');
+        grModel.addQuery('sys_id', 'IN', Object.keys(modelSysIdUnique));
+        grModel.query();
+        while (grModel.next()) {
+          const tempModelSysId = checkString(grModel.getUniqueValue());
+          if (tempModelSysId !== null) {
+            modelData[tempModelSysId] = {
+              deviceCategory: checkString(grModel.u_device_category.getDisplayValue()),
+              displayName: checkString(grModel.display_name.getValue()),
+              endOfFirmwareSupportDate: checkString(grModel.u_end_of_software_maintenance_date.getValue()),
+              endOfLife: checkString(grModel.u_end_of_life.getValue()),
+              endOfSale: checkString(grModel.u_end_of_sale.getValue()),
+              maxChildren: checkInteger(grModel.u_max_children.getValue()),
+              modelHeight: checkInteger(grModel.rack_units.getValue()),
+              modelName: checkString(grModel.name.getValue()),
+            };
+          }
+        }
+      }
+      // network adaptors
+      // @ts-ignore
+      const portLocal = new GlideRecord('cmdb_ci_network_adapter');
+      portLocal.addQuery('cmdb_ci', 'IN', Object.keys(switchCiUnique));
+      // portLocal.addEncodedQuery('nameSTARTSWITHeth');
+      portLocal.query();
+      while (portLocal.next()) {
+        const adaptorSysId = checkString(portLocal.getUniqueValue());
+        const localAdaptorName = checkStringWithDefault('name missing', portLocal.name.getValue());
+        const localCmdbCiStatus = checkStringWithDefault('status missing', portLocal.u_cmdb_ci_status.getDisplayValue());
+        const switchCiSysId = checkString(portLocal.cmdb_ci.getValue());
+        if (adaptorSysId !== null && switchCiSysId !== null) {
+          if (!Object.prototype.hasOwnProperty.call(networkAdaptorsLocal, switchCiSysId)) {
+            networkAdaptorsLocal[switchCiSysId] = {};
+          }
+          networkAdaptorsLocal[switchCiSysId][adaptorSysId] = {
+            adaptorName: localAdaptorName,
+            cmdbCiStatus: localCmdbCiStatus,
+          };
+        }
+      }
+      // @ts-ignore
+      const portRemote = new GlideRecord('cmdb_ci_network_adapter');
+      portRemote.addQuery('u_switch', 'IN', Object.keys(switchCiUnique));
+      portRemote.addNotNullQuery('u_switch');
+      // portRemote.addEncodedQuery('nameSTARTSWITHeth');
+      // portRemote.addEncodedQuery('u_switchportSTARTSWITHeth');
+      portRemote.query();
+      while (portRemote.next()) {
+        const adaptorName = checkStringWithDefault('name missing', portRemote.name.getValue());
+        const adaptorSysId = checkString(portRemote.getUniqueValue());
+        const remoteCmdbCiStatus = checkStringWithDefault('status missing', portRemote.u_cmdb_ci_status.getDisplayValue());
+        const remoteName = checkStringWithDefault('name_missing', portRemote.cmdb_ci.getDisplayValue());
+        const switchCiSysId = checkString(portRemote.u_switch.getValue());
+        const switchPortSysId = checkString(portRemote.u_switchport.getValue());
+        if (adaptorSysId !== null && switchCiSysId !== null && switchPortSysId !== null) {
+          // switch has a match
+          if (Object.prototype.hasOwnProperty.call(networkAdaptorsLocal, switchCiSysId)) {
+            // switchport exists on switch
+            if (Object.prototype.hasOwnProperty.call(networkAdaptorsLocal[switchCiSysId], switchPortSysId)) {
+              // prepare networkAdaptorsRemote
+              if (!Object.prototype.hasOwnProperty.call(networkAdaptorsRemote, switchCiSysId)) {
+                networkAdaptorsRemote[switchCiSysId] = {};
+              }
+              if (!Object.prototype.hasOwnProperty.call(networkAdaptorsRemote[switchCiSysId], switchPortSysId)) {
+                networkAdaptorsRemote[switchCiSysId][switchPortSysId] = {};
+              }
+              // store by adaptor sys_id. allows multiples to detect collisions
+              networkAdaptorsRemote[switchCiSysId][switchPortSysId][adaptorSysId] = {
+                adaptorName: `${remoteName} - ${adaptorName}`,
+                cmdbCiStatus: remoteCmdbCiStatus,
+              };
+            }
+          }
+        }
+      }
+      calculateSortedHardware();
+    }
+    // @ts-ignore
+    data.collisionHardware = collisionHardware;
+    // @ts-ignore
+    data.collisionPatchpanel = collisionPatchpanel;
+    // @ts-ignore
+    data.collisionSled = collisionSled;
+    // @ts-ignore
+    data.ciData = ciData;
+    // @ts-ignore
+    data.ciSysIdUnique = ciSysIdUnique;
+    // @ts-ignore
+    data.groupSysIdManagerSysId = groupSysIdManagerSysId;
+    // @ts-ignore
+    data.hardwareSkuSysIdDerateKw = hardwareSkuSysIdDerateKw;
+    // @ts-ignore
+    data.hardwareSkuSysIdName = hardwareSkuSysIdName;
+    // @ts-ignore
+    data.managerSysIdName = managerSysIdName;
+    // @ts-ignore
+    data.modelData = modelData;
+    // @ts-ignore
+    data.networkAdaptorsRemote = networkAdaptorsRemote;
+    // @ts-ignore
+    data.networkAdaptorsLocal = networkAdaptorsLocal;
+    // @ts-ignore
+    data.primaryBusinessProduct = primaryBusinessProduct;
+    // @ts-ignore
+    data.rackColor = rackColor;
+    // @ts-ignore
+    data.rackData = rackData;
+    // @ts-ignore
+    data.rackMetaData = rackMetaData;
+    // @ts-ignore
+    data.rackNameRackSysId = rackNameRackSysId;
+    // @ts-ignore
+    data.rackReservation = rackReservation;
+    // @ts-ignore
+    data.rackSysIdNetEnv = rackSysIdNetEnv;
+    // @ts-ignore
+    data.rackSysIdRackName = rackSysIdRackName;
+    // @ts-ignore
+    data.rackUnitReservation = rackUnitReservation;
+    // @ts-ignore
+    data.scReqItemCI = scReqItemCI;
+    // @ts-ignore
+    data.skuSysIdUnique = skuSysIdUnique;
+    // @ts-ignore
+    data.slotReservation = slotReservation;
+    // @ts-ignore
+    data.usageSlots = usageSlots;
+    // @ts-ignore
+    data.usageUnits = usageUnits;
+  };
+  getData(rackSysIdArray);
