@@ -112,7 +112,6 @@
   const collisionSled: Record<string, boolean> = {};
   // hardware that is in a collision
   // alm_hardware sys_id, true
-  const collisionHardware: Record<string, boolean> = {};
   // patchpanels that are in a collision
   // u_patch_panel sys_id, true
   const collisionPatchpanel: Record<string, boolean> = {};
@@ -213,7 +212,6 @@
   // second key is unit as string
   // third string is either alm_hardware or u_patch_panel sys_id
   // value is the table (alm_hardware or u_patch_panel)
-  const usageUnits: Record<string, Record<string, Record<string, string>>> = {};
   // first string is chassis alm_hardware sys_id
   // second key is slot as string
   // third key is sled alm_hardware sys_id

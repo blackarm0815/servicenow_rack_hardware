@@ -182,20 +182,31 @@ const getSortedRackHardware = (
     let isRackMounted: boolean;
     let isPdu: boolean;
     let isNetworkCard: boolean;
-    let pass: false;
-    // feedback about result
-    let failReason: string;
     // datastructures
+    const collisionHardware: Record<string, boolean> = {};
     const rackHardwareBadData: Record<string, Record<string, boolean>> = {};
     const rackHardwareChassisNetwork: Record<string, Record<string, boolean>> = {};
     const rackHardwareChassisSled: Record<string, Record<string, boolean>> = {};
     const rackHardwarePdu: Record<string, Record<string, boolean>> = {};
     const rackHardwareRackMounted: Record<string, Record<string, boolean>> = {};
     const rackHardwareResult: Record<string, Array<string>> = {};
+    const usageUnits: Record<string, Record<string, Record<string, string>>> = {};
     Object.keys(hardwareData).forEach((hardwareSysId) => {
+      // generate needed variables
       const hardware = hardwareData[hardwareSysId];
-      const { rackSysId } = hardware;
-      const { parent } = hardware;
+      const {
+        modelSysId,
+        parent,
+        rackSysId,
+        rackU,
+      } = hardware;
+      let modelHeight = 0;
+      if (modelSysId !== null && Object.prototype.hasOwnProperty.call(modelData, modelSysId)) {
+        const testModelHeight = modelData[modelSysId].modelHeight;
+        if (testModelHeight !== null) {
+          modelHeight = testModelHeight;
+        }
+      }
       if (rackSysId !== null) {
         rackHardwareResult[hardwareSysId] = [];
         // set test booleans to false
@@ -240,6 +251,29 @@ const getSortedRackHardware = (
               rackHardwareRackMounted[rackSysId] = {};
             }
             rackHardwareRackMounted[rackSysId][hardwareSysId] = true;
+            // build collision data
+            if (rackU !== null) {
+              for (let loop = 0; loop < modelHeight; loop += 1) {
+                const unitString = (rackU + loop).toString();
+                // generate usage
+                if (!Object.prototype.hasOwnProperty.call(usageUnits, rackSysId)) {
+                  usageUnits[rackSysId] = {};
+                }
+                if (!Object.prototype.hasOwnProperty.call(usageUnits[rackSysId], unitString)) {
+                  usageUnits[rackSysId][unitString] = {};
+                }
+                usageUnits[rackSysId][unitString][hardwareSysId] = 'alm_hardware';
+                // deal with duplicates
+                if (Object.keys(usageUnits[rackSysId][unitString]).length > 1) {
+                  Object.keys(usageUnits[rackSysId][unitString]).forEach((collisionSysId) => {
+                    // alm_hardware or u_patch_panel
+                    if (usageUnits[rackSysId][unitString][collisionSysId] === 'alm_hardware') {
+                      collisionHardware[collisionSysId] = true;
+                    }
+                  });
+                }
+              }
+            }
           } else {
             rackHardwareResult[hardwareSysId].push(resultRackMounted.failReport);
           }
@@ -247,12 +281,14 @@ const getSortedRackHardware = (
       }
     });
     return {
+      collisionHardware,
       rackHardwareBadData,
       rackHardwareChassisNetwork,
       rackHardwareChassisSled,
       rackHardwarePdu,
       rackHardwareRackMounted,
       rackHardwareResult,
+      usageUnits,
     };
   };
   const getModel = (
@@ -500,12 +536,14 @@ const getSortedRackHardware = (
   } = getRackZoneData(rackSysIdName);
   const modelData = getModel(modelSysIdUnique);
   const {
+    collisionHardware,
     rackHardwareBadData,
     rackHardwareChassisNetwork,
     rackHardwareChassisSled,
     rackHardwarePdu,
     rackHardwareRackMounted,
     rackHardwareResult,
+    usageUnits,
   } = calculateSortedHardware(
     hardwareData,
     modelData,
@@ -522,6 +560,7 @@ const getSortedRackHardware = (
   // return data
   return {
     ciSysIdUnique,
+    collisionHardware,
     hardwareData,
     hardwareSysIdUnique,
     modelData,
@@ -540,6 +579,7 @@ const getSortedRackHardware = (
     rowNameRackNameList,
     rowNameRowSysId,
     rowSysIdRoomSysId,
+    usageUnits,
   };
 };
 const testRackSysIds = ['f4738c21dbb1c7442b56541adc96196a'];

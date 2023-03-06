@@ -135,16 +135,25 @@ var getSortedRackHardware = function (rackSysIdArray) {
         // feedback about result
         var failReason;
         // datastructures
+        var collisionHardware = {};
         var rackHardwareBadData = {};
         var rackHardwareChassisNetwork = {};
         var rackHardwareChassisSled = {};
         var rackHardwarePdu = {};
         var rackHardwareRackMounted = {};
         var rackHardwareResult = {};
+        var usageUnits = {};
         Object.keys(hardwareData).forEach(function (hardwareSysId) {
+            // generate needed variables
             var hardware = hardwareData[hardwareSysId];
-            var rackSysId = hardware.rackSysId;
-            var parent = hardware.parent;
+            var modelSysId = hardware.modelSysId, parent = hardware.parent, rackSysId = hardware.rackSysId, rackU = hardware.rackU;
+            var modelHeight = 0;
+            if (modelSysId !== null && Object.prototype.hasOwnProperty.call(modelData, modelSysId)) {
+                var testModelHeight = modelData[modelSysId].modelHeight;
+                if (testModelHeight !== null) {
+                    modelHeight = testModelHeight;
+                }
+            }
             if (rackSysId !== null) {
                 rackHardwareResult[hardwareSysId] = [];
                 // set test booleans to false
@@ -181,6 +190,32 @@ var getSortedRackHardware = function (rackSysIdArray) {
                             rackHardwareRackMounted[rackSysId] = {};
                         }
                         rackHardwareRackMounted[rackSysId][hardwareSysId] = true;
+                        // build collision data
+                        if (rackU !== null) {
+                            var _loop_1 = function (loop) {
+                                var unitString = (rackU + loop).toString();
+                                // generate usage
+                                if (!Object.prototype.hasOwnProperty.call(usageUnits, rackSysId)) {
+                                    usageUnits[rackSysId] = {};
+                                }
+                                if (!Object.prototype.hasOwnProperty.call(usageUnits[rackSysId], unitString)) {
+                                    usageUnits[rackSysId][unitString] = {};
+                                }
+                                usageUnits[rackSysId][unitString][hardwareSysId] = 'alm_hardware';
+                                // deal with duplicates
+                                if (Object.keys(usageUnits[rackSysId][unitString]).length > 1) {
+                                    Object.keys(usageUnits[rackSysId][unitString]).forEach(function (collisionSysId) {
+                                        // alm_hardware or u_patch_panel
+                                        if (usageUnits[rackSysId][unitString][collisionSysId] === 'alm_hardware') {
+                                            collisionHardware[collisionSysId] = true;
+                                        }
+                                    });
+                                }
+                            };
+                            for (var loop = 0; loop < modelHeight; loop += 1) {
+                                _loop_1(loop);
+                            }
+                        }
                     }
                     else {
                         rackHardwareResult[hardwareSysId].push(resultRackMounted.failReport);
@@ -189,12 +224,14 @@ var getSortedRackHardware = function (rackSysIdArray) {
             }
         });
         return {
+            collisionHardware: collisionHardware,
             rackHardwareBadData: rackHardwareBadData,
             rackHardwareChassisNetwork: rackHardwareChassisNetwork,
             rackHardwareChassisSled: rackHardwareChassisSled,
             rackHardwarePdu: rackHardwarePdu,
             rackHardwareRackMounted: rackHardwareRackMounted,
-            rackHardwareResult: rackHardwareResult
+            rackHardwareResult: rackHardwareResult,
+            usageUnits: usageUnits
         };
     };
     var getModel = function (modelSysIdUnique) {
@@ -412,7 +449,7 @@ var getSortedRackHardware = function (rackSysIdArray) {
     var _b = getHardware(rackSysIdArray), ciSysIdUnique = _b.ciSysIdUnique, hardwareData = _b.hardwareData, hardwareSysIdUnique = _b.hardwareSysIdUnique, modelSysIdUnique = _b.modelSysIdUnique, skuSysIdUnique = _b.skuSysIdUnique;
     var _c = getRackZoneData(rackSysIdName), rackSysIdRowSysId = _c.rackSysIdRowSysId, rowNameRackNameList = _c.rowNameRackNameList, rowNameRowSysId = _c.rowNameRowSysId, rowSysIdRoomSysId = _c.rowSysIdRoomSysId;
     var modelData = getModel(modelSysIdUnique);
-    var _d = calculateSortedHardware(hardwareData, modelData), rackHardwareBadData = _d.rackHardwareBadData, rackHardwareChassisNetwork = _d.rackHardwareChassisNetwork, rackHardwareChassisSled = _d.rackHardwareChassisSled, rackHardwarePdu = _d.rackHardwarePdu, rackHardwareRackMounted = _d.rackHardwareRackMounted, rackHardwareResult = _d.rackHardwareResult;
+    var _d = calculateSortedHardware(hardwareData, modelData), collisionHardware = _d.collisionHardware, rackHardwareBadData = _d.rackHardwareBadData, rackHardwareChassisNetwork = _d.rackHardwareChassisNetwork, rackHardwareChassisSled = _d.rackHardwareChassisSled, rackHardwarePdu = _d.rackHardwarePdu, rackHardwareRackMounted = _d.rackHardwareRackMounted, rackHardwareResult = _d.rackHardwareResult, usageUnits = _d.usageUnits;
     //
     //
     //
@@ -425,6 +462,7 @@ var getSortedRackHardware = function (rackSysIdArray) {
     // return data
     return {
         ciSysIdUnique: ciSysIdUnique,
+        collisionHardware: collisionHardware,
         hardwareData: hardwareData,
         hardwareSysIdUnique: hardwareSysIdUnique,
         modelData: modelData,
@@ -442,7 +480,8 @@ var getSortedRackHardware = function (rackSysIdArray) {
         rackSysIdRowSysId: rackSysIdRowSysId,
         rowNameRackNameList: rowNameRackNameList,
         rowNameRowSysId: rowNameRowSysId,
-        rowSysIdRoomSysId: rowSysIdRoomSysId
+        rowSysIdRoomSysId: rowSysIdRoomSysId,
+        usageUnits: usageUnits
     };
 };
 var testRackSysIds = ['f4738c21dbb1c7442b56541adc96196a'];
