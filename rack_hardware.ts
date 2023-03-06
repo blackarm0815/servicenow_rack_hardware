@@ -54,20 +54,6 @@ const getSortedRackHardware = (
     }
     return null;
   };
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
   const testValidChassisNetwork = (
     hardwareData: Record<string, Hardware>,
     hardware: Hardware,
