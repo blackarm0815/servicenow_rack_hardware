@@ -285,65 +285,6 @@
       };
     }
   };
-  const testValidRackMounted = (
-    hardwareSysId: string,
-  ) => {
-    const hardware = hardwareData[hardwareSysId];
-    try {
-      if (hardware.parent !== null) {
-        return {
-          pass: false,
-          failReport: 'not a valid rack mounted - has a parent',
-        };
-      }
-      if (hardware.rackU === null) {
-        return {
-          pass: false,
-          failReport: 'not a valid  rack mounted - u_rack_u is missing',
-        };
-      }
-      if (hardware.rackU === 0) {
-        return {
-          pass: false,
-          failReport: 'not a valid  rack mounted - u_rack_u is zero',
-        };
-      }
-      if (hardware.modelSysId === null) {
-        return {
-          pass: false,
-          failReport: 'not a valid  rack mounted - does not have a model',
-        };
-      }
-      if (!Object.prototype.hasOwnProperty.call(modelData, hardware.modelSysId)) {
-        return {
-          pass: false,
-          failReport: 'not a valid  rack mounted - model not found',
-        };
-      }
-      if (modelData[hardware.modelSysId].modelHeight === null) {
-        return {
-          pass: false,
-          failReport: 'not a valid  rack mounted - model height is missing',
-        };
-      }
-      if (modelData[hardware.modelSysId].modelHeight === 0) {
-        return {
-          pass: false,
-          failReport: 'not a valid  rack mounted - model height is zero',
-        };
-      }
-      return {
-        pass: true,
-        failReport: '',
-      };
-    } catch (err) {
-      errorLog('testValidRackMounted', <string>err);
-      return {
-        pass: false,
-        failReport: 'not a valid rack mounted - function crashed',
-      };
-    }
-  };
   const testValidPatchpanel = (
     patchpanelSysId: string,
   ) => {

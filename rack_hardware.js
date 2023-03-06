@@ -29,19 +29,92 @@ var getSortedRackHardware = function (rackSysIdArray) {
     //
     //
     //
-    var testIfSled = function (hardware, modelData) {
-        // bullshit code
-        if (Object.keys(modelData).length > 0) {
-            return false;
+    var testValidRackMounted = function (hardware, modelData) {
+        if (hardware.parent !== null) {
+            return {
+                pass: false,
+                failReport: 'not a valid rack mounted - has a parent'
+            };
         }
-        return true;
-    };
-    var processSleds = function (hardwareData, hardwareSysId, modelData, rackHardwareBadData, rackHardwareChassisNetwork, rackHardwareChassisSled, rackHardwarePdu, rackHardwareRackMounted, rackHardwareResult) {
-        if (testIfSled(hardwareData[hardwareSysId], modelData)) {
-            rackHardwareResult[hardwareSysId].push('is a sled');
+        if (hardware.rackU === null) {
+            return {
+                pass: false,
+                failReport: 'not a valid  rack mounted - u_rack_u is missing'
+            };
         }
+        if (hardware.rackU === 0) {
+            return {
+                pass: false,
+                failReport: 'not a valid  rack mounted - u_rack_u is zero'
+            };
+        }
+        if (hardware.modelSysId === null) {
+            return {
+                pass: false,
+                failReport: 'not a valid  rack mounted - does not have a model'
+            };
+        }
+        if (!Object.prototype.hasOwnProperty.call(modelData, hardware.modelSysId)) {
+            return {
+                pass: false,
+                failReport: 'not a valid  rack mounted - model not found'
+            };
+        }
+        if (modelData[hardware.modelSysId].modelHeight === null) {
+            return {
+                pass: false,
+                failReport: 'not a valid  rack mounted - model height is missing'
+            };
+        }
+        if (modelData[hardware.modelSysId].modelHeight === 0) {
+            return {
+                pass: false,
+                failReport: 'not a valid  rack mounted - model height is zero'
+            };
+        }
+        return {
+            pass: true,
+            failReport: ''
+        };
     };
-    var testIfRack = function (hardware, modelData) {
+    var testValidChassisSled = function (hardwareData, hardwareSysId) {
+        var parentSysId = hardwareData[hardwareSysId].parent;
+        if (hardwareData[hardwareSysId].slot === null) {
+            return {
+                pass: false,
+                failReport: 'not a valid sled - slot missing'
+            };
+        }
+        if (hardwareData[hardwareSysId].slot === 0) {
+            return {
+                pass: false,
+                failReport: 'not a valid sled - slot is zero'
+            };
+        }
+        if (parentSysId === null) {
+            return {
+                pass: false,
+                failReport: 'not a valid sled - parent missing'
+            };
+        }
+        if (parentSysId !== null && !Object.prototype.hasOwnProperty.call(hardwareData, parentSysId)) {
+            return {
+                pass: false,
+                failReport: 'not a valid sled - parent not found in hardwareData'
+            };
+        }
+        if (parentSysId !== null && hardwareData[parentSysId].rackSysId !== hardwareData[hardwareSysId].rackSysId) {
+            return {
+                pass: false,
+                failReport: 'not a valid sled - parent not in same rack'
+            };
+        }
+        return {
+            pass: true,
+            failReport: ''
+        };
+    };
+    var testValidRack = function (hardware, modelData) {
         if (hardware.modelSysId !== null) {
             if (Object.prototype.hasOwnProperty.call(modelData, hardware.modelSysId)) {
                 if (modelData[hardware.modelSysId].deviceCategory === 'Rack') {
@@ -51,15 +124,17 @@ var getSortedRackHardware = function (rackSysIdArray) {
         }
         return false;
     };
-    var processRacks = function (hardwareData, hardwareSysId, modelData, rackHardwareBadData, rackHardwareChassisNetwork, rackHardwareChassisSled, rackHardwarePdu, rackHardwareRackMounted, rackHardwareResult) {
-        if (testIfRack(hardwareData[hardwareSysId], modelData)) {
-            rackHardwareResult[hardwareSysId].push('is a rack');
-        }
-        else {
-            processSleds(hardwareData, hardwareSysId, modelData, rackHardwareBadData, rackHardwareChassisNetwork, rackHardwareChassisSled, rackHardwarePdu, rackHardwareRackMounted, rackHardwareResult);
-        }
-    };
     var calculateSortedHardware = function (hardwareData, modelData) {
+        // test booleans
+        var isRack;
+        var isSled;
+        var isRackMounted;
+        var isPdu;
+        var isNetworkCard;
+        var pass;
+        // feedback about result
+        var failReason;
+        // datastructures
         var rackHardwareBadData = {};
         var rackHardwareChassisNetwork = {};
         var rackHardwareChassisSled = {};
@@ -67,8 +142,51 @@ var getSortedRackHardware = function (rackSysIdArray) {
         var rackHardwareRackMounted = {};
         var rackHardwareResult = {};
         Object.keys(hardwareData).forEach(function (hardwareSysId) {
-            rackHardwareResult[hardwareSysId] = [];
-            processRacks(hardwareData, hardwareSysId, modelData, rackHardwareBadData, rackHardwareChassisNetwork, rackHardwareChassisSled, rackHardwarePdu, rackHardwareRackMounted, rackHardwareResult);
+            var hardware = hardwareData[hardwareSysId];
+            var rackSysId = hardware.rackSysId;
+            var parent = hardware.parent;
+            if (rackSysId !== null) {
+                rackHardwareResult[hardwareSysId] = [];
+                // set test booleans to false
+                isRack = false;
+                isSled = false;
+                isRackMounted = false;
+                isPdu = false;
+                isNetworkCard = false;
+                // check for rack
+                isRack = testValidRack(hardware, modelData);
+                if (isRack) {
+                    rackHardwareResult[hardwareSysId].push('is a rack');
+                }
+                // check for sled
+                if (!isRack) {
+                    var resultSled = testValidChassisSled(hardwareData, hardwareSysId);
+                    isSled = resultSled.pass;
+                    if (isSled && parent !== null) {
+                        if (!Object.prototype.hasOwnProperty.call(rackHardwareChassisSled, parent)) {
+                            rackHardwareChassisSled[parent] = {};
+                        }
+                        rackHardwareChassisSled[parent][hardwareSysId] = true;
+                    }
+                    else {
+                        rackHardwareResult[hardwareSysId].push(resultSled.failReport);
+                    }
+                }
+                // check for rackmounted
+                if (!isSled) {
+                    var resultRackMounted = testValidRackMounted(hardware, modelData);
+                    isRackMounted = resultRackMounted.pass;
+                    if (isRackMounted) {
+                        if (!Object.prototype.hasOwnProperty.call(rackHardwareRackMounted, rackSysId)) {
+                            rackHardwareRackMounted[rackSysId] = {};
+                        }
+                        rackHardwareRackMounted[rackSysId][hardwareSysId] = true;
+                    }
+                    else {
+                        rackHardwareResult[hardwareSysId].push(resultRackMounted.failReport);
+                    }
+                }
+            }
         });
         return {
             rackHardwareBadData: rackHardwareBadData,

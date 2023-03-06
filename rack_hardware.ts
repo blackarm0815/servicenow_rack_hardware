@@ -68,21 +68,57 @@ const getSortedRackHardware = (
   //
   //
   //
-  const testIfSled = (
+  const testValidRackMounted = (
     hardware: Hardware,
     modelData: Record<string, Model>,
   ) => {
-    // bullshit code
-    if (Object.keys(modelData).length > 0) {
-      return false;
+    if (hardware.parent !== null) {
+      return {
+        pass: false,
+        failReport: 'not a valid rack mounted - has a parent',
+      };
     }
-    return true;
+    if (hardware.rackU === null) {
+      return {
+        pass: false,
+        failReport: 'not a valid  rack mounted - u_rack_u is missing',
+      };
+    }
+    if (hardware.rackU === 0) {
+      return {
+        pass: false,
+        failReport: 'not a valid  rack mounted - u_rack_u is zero',
+      };
+    }
+    if (hardware.modelSysId === null) {
+      return {
+        pass: false,
+        failReport: 'not a valid  rack mounted - does not have a model',
+      };
+    }
+    if (!Object.prototype.hasOwnProperty.call(modelData, hardware.modelSysId)) {
+      return {
+        pass: false,
+        failReport: 'not a valid  rack mounted - model not found',
+      };
+    }
+    if (modelData[hardware.modelSysId].modelHeight === null) {
+      return {
+        pass: false,
+        failReport: 'not a valid  rack mounted - model height is missing',
+      };
+    }
+    if (modelData[hardware.modelSysId].modelHeight === 0) {
+      return {
+        pass: false,
+        failReport: 'not a valid  rack mounted - model height is zero',
+      };
+    }
+    return {
+      pass: true,
+      failReport: '',
+    };
   };
-
-
-
-
-
   const testValidChassisSled = (
     hardwareData: Record<string, Hardware>,
     hardwareSysId: string,
@@ -123,62 +159,7 @@ const getSortedRackHardware = (
       failReport: '',
     };
   };
-
-  // const testIfSled = (
-  //   hardwareSysId: string,
-  // ) => {
-  //   const sortResult = testValidChassisSled(hardwareSysId);
-  //   const testParent = hardwareData[hardwareSysId].parent;
-  //   const testSlot = hardwareData[hardwareSysId].slot;
-  //   if (sortResult.pass && testParent !== null && testSlot !== null) {
-  //     // valid sled detected
-  //     if (!Object.prototype.hasOwnProperty.call(hardwareChassisSled, testParent)) {
-  //       hardwareChassisSled[testParent] = {};
-  //     }
-  //     hardwareChassisSled[testParent][hardwareSysId] = true;
-  //     generateUsageSlots(
-  //       hardwareSysId,
-  //       testParent,
-  //       testSlot,
-  //     );
-  //   } else {
-  //     hardwareSortResult[hardwareSysId].push(sortResult.failReport);
-  //     testRackMounted(hardwareSysId);
-  //   }
-  // };
-
-
-
-
-
-  const processSleds = (
-    hardwareData: Record<string, Hardware>,
-    hardwareSysId: string,
-    modelData: Record<string, Model>,
-    rackHardwareBadData: Record<string, Record<string, boolean>>,
-    rackHardwareChassisNetwork: Record<string, Record<string, boolean>>,
-    rackHardwareChassisSled: Record<string, Record<string, boolean>>,
-    rackHardwarePdu: Record<string, Record<string, boolean>>,
-    rackHardwareRackMounted: Record<string, Record<string, boolean>>,
-    rackHardwareResult: Record<string, Array<string>>,
-    rackSysId: string,
-  ) => {
-    const {
-      pass,
-      failReport,
-    } = testValidChassisSled(
-      hardwareData,
-      hardwareSysId,
-    )
-    if (pass) {
-      rackHardwareResult[hardwareSysId].push('is a sled');
-      if (!Object.prototype.hasOwnProperty.call(rackHardwareChassisSled, rackSysId)) {
-        rackHardwareChassisSled[rackSysId] = {};
-      }
-      rackHardwareChassisSled[rackSysId][hardwareSysId] = true;
-    }
-  };
-  const testIfRack = (
+  const testValidRack = (
     hardware: Hardware,
     modelData: Record<string, Model>,
   ) => {
@@ -191,39 +172,20 @@ const getSortedRackHardware = (
     }
     return false;
   };
-  const processRacks = (
-    hardwareData: Record<string, Hardware>,
-    hardwareSysId: string,
-    modelData: Record<string, Model>,
-    rackHardwareBadData: Record<string, Record<string, boolean>>,
-    rackHardwareChassisNetwork: Record<string, Record<string, boolean>>,
-    rackHardwareChassisSled: Record<string, Record<string, boolean>>,
-    rackHardwarePdu: Record<string, Record<string, boolean>>,
-    rackHardwareRackMounted: Record<string, Record<string, boolean>>,
-    rackHardwareResult: Record<string, Array<string>>,
-    rackSysId: string,
-  ) => {
-    if (testIfRack(hardwareData[hardwareSysId], modelData)) {
-      rackHardwareResult[hardwareSysId].push('is a rack');
-    } else {
-      processSleds(
-        hardwareData,
-        hardwareSysId,
-        modelData,
-        rackHardwareBadData,
-        rackHardwareChassisNetwork,
-        rackHardwareChassisSled,
-        rackHardwarePdu,
-        rackHardwareRackMounted,
-        rackHardwareResult,
-        rackSysId,
-      );
-    }
-  };
   const calculateSortedHardware = (
     hardwareData: Record<string, Hardware>,
     modelData: Record<string, Model>,
   ) => {
+    // test booleans
+    let isRack: boolean;
+    let isSled: boolean;
+    let isRackMounted: boolean;
+    let isPdu: boolean;
+    let isNetworkCard: boolean;
+    let pass: false;
+    // feedback about result
+    let failReason: string;
+    // datastructures
     const rackHardwareBadData: Record<string, Record<string, boolean>> = {};
     const rackHardwareChassisNetwork: Record<string, Record<string, boolean>> = {};
     const rackHardwareChassisSled: Record<string, Record<string, boolean>> = {};
@@ -231,21 +193,57 @@ const getSortedRackHardware = (
     const rackHardwareRackMounted: Record<string, Record<string, boolean>> = {};
     const rackHardwareResult: Record<string, Array<string>> = {};
     Object.keys(hardwareData).forEach((hardwareSysId) => {
-      const { rackSysId } = hardwareData[hardwareSysId];
+      const hardware = hardwareData[hardwareSysId];
+      const { rackSysId } = hardware;
+      const { parent } = hardware;
       if (rackSysId !== null) {
         rackHardwareResult[hardwareSysId] = [];
-        processRacks(
-          hardwareData,
-          hardwareSysId,
+        // set test booleans to false
+        isRack = false;
+        isSled = false;
+        isRackMounted = false;
+        isPdu = false;
+        isNetworkCard = false;
+        // check for rack
+        isRack = testValidRack(
+          hardware,
           modelData,
-          rackHardwareBadData,
-          rackHardwareChassisNetwork,
-          rackHardwareChassisSled,
-          rackHardwarePdu,
-          rackHardwareRackMounted,
-          rackHardwareResult,
-          rackSysId,
         );
+        if (isRack) {
+          rackHardwareResult[hardwareSysId].push('is a rack');
+        }
+        // check for sled
+        if (!isRack) {
+          const resultSled = testValidChassisSled(
+            hardwareData,
+            hardwareSysId,
+          );
+          isSled = resultSled.pass;
+          if (isSled && parent !== null) {
+            if (!Object.prototype.hasOwnProperty.call(rackHardwareChassisSled, parent)) {
+              rackHardwareChassisSled[parent] = {};
+            }
+            rackHardwareChassisSled[parent][hardwareSysId] = true;
+          } else {
+            rackHardwareResult[hardwareSysId].push(resultSled.failReport);
+          }
+        }
+        // check for rackmounted
+        if (!isSled) {
+          const resultRackMounted = testValidRackMounted(
+            hardware,
+            modelData,
+          );
+          isRackMounted = resultRackMounted.pass;
+          if (isRackMounted) {
+            if (!Object.prototype.hasOwnProperty.call(rackHardwareRackMounted, rackSysId)) {
+              rackHardwareRackMounted[rackSysId] = {};
+            }
+            rackHardwareRackMounted[rackSysId][hardwareSysId] = true;
+          } else {
+            rackHardwareResult[hardwareSysId].push(resultRackMounted.failReport);
+          }
+        }
       }
     });
     return {
