@@ -439,13 +439,6 @@ const getSortedRackHardware = (
         if (tempModelSysId !== null) {
           modelSysIdUnique[tempModelSysId] = true;
         }
-        // // store leaf switches for network environment query
-        // if (tempCiSysId !== null && hardRackSysId !== null) {
-        //   if (tempCiName !== null && tempCiName.startsWith('LFAS')) {
-        //     netEnvCiSysIdRackSysId[tempCiSysId] = hardRackSysId;
-        //   }
-        // }
-        // this will get replaced with the new maxPorts field in the model table
       }
     }
     return {
