@@ -15,10 +15,76 @@ var getSortedRackHardware = function (rackSysIdArray) {
         }
         return null;
     };
+    var getHardware = function (tempRackSysIdArray) {
+        var ciSysIdUnique = {};
+        var hardwareData = {};
+        var hardwareSysIdUnique = {};
+        var modelSysIdUnique = {};
+        var skuSysIdUnique = {};
+        var grHardware = new GlideRecord('alm_hardware');
+        grHardware.addQuery('u_rack', 'IN', tempRackSysIdArray);
+        grHardware.query();
+        while (grHardware.next()) {
+            // used as keys
+            var tempHardwareSysId = checkString(grHardware.getUniqueValue());
+            var tempCiSysId = checkString(grHardware.ci.getValue());
+            var tempCiName = checkString(grHardware.ci.getDisplayValue());
+            var tempModelSysId = checkString(grHardware.model.getValue());
+            var hardRackSysId = checkString(grHardware.u_rack.getValue());
+            var tempSkuSysId = checkString(grHardware.u_hardware_sku.getValue());
+            // store
+            if (tempHardwareSysId !== null && hardRackSysId !== null) {
+                hardwareData[tempHardwareSysId] = {
+                    assetTag: checkString(grHardware.asset_tag.getValue()),
+                    ciSysId: tempCiSysId,
+                    ciName: tempCiName,
+                    hardwareSkuSysId: tempSkuSysId,
+                    lastPhysicalAudit: checkString(grHardware.u_last_physical_audit.getValue()),
+                    location: checkString(grHardware.location.getDisplayValue()),
+                    modelCategoryName: checkString(grHardware.model_category.getDisplayValue()),
+                    modelSysId: tempModelSysId,
+                    parent: checkString(grHardware.parent.getValue()),
+                    provisioningBudgetCodeSysId: checkString(grHardware.u_provisioning_budget_code.getValue()),
+                    rackSysId: hardRackSysId,
+                    rackPosition: checkInteger(grHardware.u_rack_position.getValue()),
+                    rackU: checkInteger(grHardware.u_rack_u.getValue()),
+                    serialNumber: checkString(grHardware.serial_number.getValue()),
+                    slot: checkInteger(grHardware.u_slot.getValue()),
+                    state: checkString(grHardware.install_status.getDisplayValue()),
+                    substate: checkString(grHardware.substatus.getValue())
+                };
+                if (hardRackSysId !== null) {
+                    hardwareSysIdUnique[tempHardwareSysId] = true;
+                }
+                if (tempCiSysId !== null) {
+                    ciSysIdUnique[tempCiSysId] = true;
+                }
+                if (tempSkuSysId !== null) {
+                    skuSysIdUnique[tempSkuSysId] = true;
+                }
+                if (tempModelSysId !== null) {
+                    modelSysIdUnique[tempModelSysId] = true;
+                }
+                // // store leaf switches for network environment query
+                // if (tempCiSysId !== null && hardRackSysId !== null) {
+                //   if (tempCiName !== null && tempCiName.startsWith('LFAS')) {
+                //     netEnvCiSysIdRackSysId[tempCiSysId] = hardRackSysId;
+                //   }
+                // }
+                // this will get replaced with the new maxPorts field in the model table
+            }
+        }
+        return {
+            ciSysIdUnique: ciSysIdUnique,
+            hardwareData: hardwareData,
+            hardwareSysIdUnique: hardwareSysIdUnique,
+            modelSysIdUnique: modelSysIdUnique,
+            skuSysIdUnique: skuSysIdUnique
+        };
+    };
     var getRackData = function (tempRackSysIdArray) {
         var tempRackData = {};
         var tempRackNameSysId = {};
-        var tempRackSysIdName = {};
         if (tempRackSysIdArray.length > 0) {
             var grRack = new GlideRecord('cmdb_ci_rack');
             grRack.addQuery('sys_id', 'IN', tempRackSysIdArray);
@@ -34,25 +100,28 @@ var getSortedRackHardware = function (rackSysIdArray) {
                     };
                     if (rackName !== null) {
                         tempRackNameSysId[rackName] = rackSysId;
-                        tempRackSysIdName[rackSysId] = rackName;
                     }
                 }
             }
         }
         return {
             rackData: tempRackData,
-            rackNameSysId: tempRackNameSysId,
-            rackSysIdName: tempRackSysIdName
+            rackNameSysId: tempRackNameSysId
         };
     };
     // collect data
-    var _a = getRackData(rackSysIdArray), rackData = _a.rackData, rackNameSysId = _a.rackNameSysId, rackSysIdName = _a.rackSysIdName;
+    var _a = getRackData(rackSysIdArray), rackData = _a.rackData, rackNameSysId = _a.rackNameSysId;
+    var _b = getHardware(rackSysIdArray), ciSysIdUnique = _b.ciSysIdUnique, hardwareData = _b.hardwareData, hardwareSysIdUnique = _b.hardwareSysIdUnique, modelSysIdUnique = _b.modelSysIdUnique, skuSysIdUnique = _b.skuSysIdUnique;
     // return data
     return {
+        ciSysIdUnique: ciSysIdUnique,
+        hardwareData: hardwareData,
+        hardwareSysIdUnique: hardwareSysIdUnique,
+        modelSysIdUnique: modelSysIdUnique,
+        skuSysIdUnique: skuSysIdUnique,
         rackData: rackData,
-        rackNameSysId: rackNameSysId,
-        rackSysIdName: rackSysIdName
+        rackNameSysId: rackNameSysId
     };
 };
-var testRackSysIds = ['14ef148a37bc7e40362896d543990ef4', '46fb332a2b45820054a41bc5a8da15fa', '163c772a2b45820054a41bc5a8da15f6', '5e3c772a2b45820054a41bc5a8da15f6'];
+var testRackSysIds = ['f4738c21dbb1c7442b56541adc96196a'];
 gs.print(getSortedRackHardware(testRackSysIds));

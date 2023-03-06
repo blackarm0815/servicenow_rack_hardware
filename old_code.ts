@@ -20,25 +20,6 @@
 //   green: number;
 //   red: number;
 // }
-// interface Hardware {
-//   assetTag: null | string;
-//   ciName: null | string;
-//   ciSysId: null | string;
-//   hardwareSkuSysId: null | string;
-//   lastPhysicalAudit: null | string;
-//   location: null | string;
-//   modelCategoryName: null | string;
-//   modelSysId: null | string;
-//   parent: null | string;
-//   provisioningBudgetCodeSysId: null | string;
-//   rackPosition: null | number;
-//   rackSysId: string;
-//   rackU: null | number;
-//   serialNumber: null | string;
-//   slot: null | number;
-//   state: null | string;
-//   substate: null | string;
-// }
 // interface Model {
 //   deviceCategory: null | string;
 //   displayName: null | string;
@@ -120,17 +101,14 @@
   // group sys_ids
   const groupsUnique: Record<string, boolean> = {};
   // alm_hardware sys_ids
-  const hardwareSysIdUnique: Record<string, boolean> = {};
   // manager sys_user sys_ids
   const managerSysIdUnique: Record<string, boolean> = {};
   // cmdb_model sys_ids
-  const modelSysIdUnique: Record<string, boolean> = {};
   // u_dc_rack_metadata sys_ids
   const rackMetaSysIdUnique: Record<string, boolean> = {};
   // cmdb_ci_service sys_ids
   const serviceSysIdUnique: Record<string, boolean> = {};
   // u_hardware_sku_configurations sys_ids
-  const skuSysIdUnique: Record<string, boolean> = {};
   // switches ci sys_ids, used for network adaptor queries
   const switchCiUnique: Record<string, boolean> = {};
   //
@@ -139,7 +117,6 @@
   // cmdb_ci_hardware sys_id, data from cmdb_ci_hardware
   const ciData: Record<string, CiData> = {};
   // unique cmdb_ci_hardware sys_id, passed to client side for change and incident queries
-  const ciSysIdUnique: Record<string, boolean> = {};
   // sleds that are in a collision
   // alm_hardware sys_id, true
   const collisionSled: Record<string, boolean> = {};
@@ -156,7 +133,6 @@
   // rack sys_id, hardware sys_id, true
   const hardwareBadData: Record<string, Record<string, boolean>> = {};
   // actual hardware data from alm_hardware
-  const hardwareData: Record<string, Hardware> = {};
   // chassis sys_id, network card sys_id, true
   const hardwareChassisNetwork: Record<string, Record<string, boolean>> = {};
   // chassis sys_id, sled sys_id, true
@@ -887,59 +863,6 @@
             reservationType: 'unit',
             userName: checkString(grResUnit.sys_created_by.getValue()),
           };
-        }
-      }
-      // @ts-ignore
-      const grHardware = new GlideRecord('alm_hardware');
-      grHardware.addQuery('u_rack', 'IN', rackSysIdList);
-      grHardware.query();
-      while (grHardware.next()) {
-        // used as keys
-        const tempHardwareSysId = checkString(grHardware.getUniqueValue());
-        const tempCiSysId = checkString(grHardware.ci.getValue());
-        const tempCiName = checkString(grHardware.ci.getDisplayValue());
-        const tempModelSysId = checkString(grHardware.model.getValue());
-        const hardRackSysId = checkString(grHardware.u_rack.getValue());
-        const tempSkuSysId = checkString(grHardware.u_hardware_sku.getValue());
-        // store
-        if (tempHardwareSysId !== null && hardRackSysId !== null) {
-          hardwareData[tempHardwareSysId] = {
-            assetTag: checkString(grHardware.asset_tag.getValue()),
-            ciSysId: tempCiSysId,
-            ciName: tempCiName,
-            hardwareSkuSysId: tempSkuSysId,
-            lastPhysicalAudit: checkString(grHardware.u_last_physical_audit.getValue()),
-            location: checkString(grHardware.location.getDisplayValue()),
-            modelCategoryName: checkString(grHardware.model_category.getDisplayValue()),
-            modelSysId: tempModelSysId,
-            parent: checkString(grHardware.parent.getValue()),
-            provisioningBudgetCodeSysId: checkString(grHardware.u_provisioning_budget_code.getValue()),
-            rackSysId: hardRackSysId,
-            rackPosition: checkInteger(grHardware.u_rack_position.getValue()),
-            rackU: checkInteger(grHardware.u_rack_u.getValue()),
-            serialNumber: checkString(grHardware.serial_number.getValue()),
-            slot: checkInteger(grHardware.u_slot.getValue()),
-            state: checkString(grHardware.install_status.getDisplayValue()),
-            substate: checkString(grHardware.substatus.getValue()),
-          };
-          if (hardRackSysId !== null) {
-            hardwareSysIdUnique[tempHardwareSysId] = true;
-          }
-          if (tempCiSysId !== null) {
-            ciSysIdUnique[tempCiSysId] = true;
-          }
-          if (tempSkuSysId !== null) {
-            skuSysIdUnique[tempSkuSysId] = true;
-          }
-          if (tempModelSysId !== null) {
-            modelSysIdUnique[tempModelSysId] = true;
-          }
-          // store leaf switches for network environment query
-          if (tempCiSysId !== null && hardRackSysId !== null) {
-            if (tempCiName !== null && tempCiName.startsWith('LFAS')) {
-              netEnvCiSysIdRackSysId[tempCiSysId] = hardRackSysId;
-            }
-          }
         }
       }
       if (Object.keys(netEnvCiSysIdRackSysId).length > 0) {
