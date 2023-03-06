@@ -190,6 +190,7 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
                     modelHeight = testModelHeight;
                 }
             }
+            //
             if (rackSysId !== null) {
                 rackHardwareResult[hardwareSysId] = [];
                 isUnidentified = true;
@@ -347,49 +348,51 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         var hardwareSysIdUnique = {};
         var modelSysIdUnique = {};
         var skuSysIdUnique = {};
-        var grHardware = new GlideRecord('alm_hardware');
-        grHardware.addQuery('u_rack', 'IN', tempRackSysIdArray);
-        grHardware.query();
-        while (grHardware.next()) {
-            // used as keys
-            var tempHardwareSysId = checkString(grHardware.getUniqueValue());
-            var tempCiSysId = checkString(grHardware.ci.getValue());
-            var tempCiName = checkString(grHardware.ci.getDisplayValue());
-            var tempModelSysId = checkString(grHardware.model.getValue());
-            var hardRackSysId = checkString(grHardware.u_rack.getValue());
-            var tempSkuSysId = checkString(grHardware.u_hardware_sku.getValue());
-            // store
-            if (tempHardwareSysId !== null && hardRackSysId !== null) {
-                hardwareData[tempHardwareSysId] = {
-                    assetTag: checkString(grHardware.asset_tag.getValue()),
-                    ciSysId: tempCiSysId,
-                    ciName: tempCiName,
-                    hardwareSkuSysId: tempSkuSysId,
-                    lastPhysicalAudit: checkString(grHardware.u_last_physical_audit.getValue()),
-                    location: checkString(grHardware.location.getDisplayValue()),
-                    modelCategoryName: checkString(grHardware.model_category.getDisplayValue()),
-                    modelSysId: tempModelSysId,
-                    parent: checkString(grHardware.parent.getValue()),
-                    provisioningBudgetCodeSysId: checkString(grHardware.u_provisioning_budget_code.getValue()),
-                    rackSysId: hardRackSysId,
-                    rackPosition: checkInteger(grHardware.u_rack_position.getValue()),
-                    rackU: checkInteger(grHardware.u_rack_u.getValue()),
-                    serialNumber: checkString(grHardware.serial_number.getValue()),
-                    slot: checkInteger(grHardware.u_slot.getValue()),
-                    state: checkString(grHardware.install_status.getDisplayValue()),
-                    substate: checkString(grHardware.substatus.getValue())
-                };
-                if (hardRackSysId !== null) {
-                    hardwareSysIdUnique[tempHardwareSysId] = true;
-                }
-                if (tempCiSysId !== null) {
-                    ciSysIdUnique[tempCiSysId] = true;
-                }
-                if (tempSkuSysId !== null) {
-                    skuSysIdUnique[tempSkuSysId] = true;
-                }
-                if (tempModelSysId !== null) {
-                    modelSysIdUnique[tempModelSysId] = true;
+        if (tempRackSysIdArray.length > 0) {
+            var grHardware = new GlideRecord('alm_hardware');
+            grHardware.addQuery('u_rack', 'IN', tempRackSysIdArray);
+            grHardware.query();
+            while (grHardware.next()) {
+                // used as keys
+                var tempHardwareSysId = checkString(grHardware.getUniqueValue());
+                var tempCiSysId = checkString(grHardware.ci.getValue());
+                var tempCiName = checkString(grHardware.ci.getDisplayValue());
+                var tempModelSysId = checkString(grHardware.model.getValue());
+                var hardRackSysId = checkString(grHardware.u_rack.getValue());
+                var tempSkuSysId = checkString(grHardware.u_hardware_sku.getValue());
+                // store
+                if (tempHardwareSysId !== null && hardRackSysId !== null) {
+                    hardwareData[tempHardwareSysId] = {
+                        assetTag: checkString(grHardware.asset_tag.getValue()),
+                        ciSysId: tempCiSysId,
+                        ciName: tempCiName,
+                        hardwareSkuSysId: tempSkuSysId,
+                        lastPhysicalAudit: checkString(grHardware.u_last_physical_audit.getValue()),
+                        location: checkString(grHardware.location.getDisplayValue()),
+                        modelCategoryName: checkString(grHardware.model_category.getDisplayValue()),
+                        modelSysId: tempModelSysId,
+                        parent: checkString(grHardware.parent.getValue()),
+                        provisioningBudgetCodeSysId: checkString(grHardware.u_provisioning_budget_code.getValue()),
+                        rackSysId: hardRackSysId,
+                        rackPosition: checkInteger(grHardware.u_rack_position.getValue()),
+                        rackU: checkInteger(grHardware.u_rack_u.getValue()),
+                        serialNumber: checkString(grHardware.serial_number.getValue()),
+                        slot: checkInteger(grHardware.u_slot.getValue()),
+                        state: checkString(grHardware.install_status.getDisplayValue()),
+                        substate: checkString(grHardware.substatus.getValue())
+                    };
+                    if (hardRackSysId !== null) {
+                        hardwareSysIdUnique[tempHardwareSysId] = true;
+                    }
+                    if (tempCiSysId !== null) {
+                        ciSysIdUnique[tempCiSysId] = true;
+                    }
+                    if (tempSkuSysId !== null) {
+                        skuSysIdUnique[tempSkuSysId] = true;
+                    }
+                    if (tempModelSysId !== null) {
+                        modelSysIdUnique[tempModelSysId] = true;
+                    }
                 }
             }
         }
