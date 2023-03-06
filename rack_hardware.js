@@ -163,17 +163,26 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         var isUnidentified;
         // datastructures
         var collisionHardware = {};
+        var collisionSled = {};
         var rackHardwareBadData = {};
         var rackHardwareChassisNetwork = {};
         var rackHardwareChassisSled = {};
         var rackHardwarePdu = {};
         var rackHardwareRackMounted = {};
+        var rackHardwareRacks = {};
         var rackHardwareResult = {};
+        var usageSlots = {};
         var usageUnits = {};
         Object.keys(hardwareData).forEach(function (hardwareSysId) {
             // generate needed variables
             var hardware = hardwareData[hardwareSysId];
-            var modelSysId = hardware.modelSysId, parent = hardware.parent, rackSysId = hardware.rackSysId, rackU = hardware.rackU;
+            var modelSysId = hardware.modelSysId, parent = hardware.parent, rackSysId = hardware.rackSysId, rackU = hardware.rackU, slot = hardware.slot;
+            //
+            var slotString = '';
+            if (slot !== null) {
+                slotString = slot.toString();
+            }
+            //
             var modelHeight = 0;
             if (modelSysId !== null && Object.prototype.hasOwnProperty.call(modelData, modelSysId)) {
                 var testModelHeight = modelData[modelSysId].modelHeight;
@@ -184,11 +193,15 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
             if (rackSysId !== null) {
                 rackHardwareResult[hardwareSysId] = [];
                 isUnidentified = true;
-                // check for rack
+                // check for racks in alm hardware (weird, but it happens)
                 var resultRack = testValidRack(hardware, modelData);
-                rackHardwareResult[hardwareSysId].push(resultRack.testReport);
                 if (resultRack.pass) {
                     isUnidentified = false;
+                    rackHardwareResult[hardwareSysId].push(resultRack.testReport);
+                    if (!Object.prototype.hasOwnProperty.call(rackHardwareRacks, rackSysId)) {
+                        rackHardwareRacks[rackSysId] = {};
+                    }
+                    rackHardwareRacks[rackSysId][hardwareSysId] = true;
                 }
                 // check for sled
                 if (isUnidentified) {
@@ -201,6 +214,20 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
                                 rackHardwareChassisSled[parent] = {};
                             }
                             rackHardwareChassisSled[parent][hardwareSysId] = true;
+                            // generate usageSlots
+                            if (!Object.prototype.hasOwnProperty.call(usageSlots, parent)) {
+                                usageSlots[parent] = {};
+                            }
+                            if (!Object.prototype.hasOwnProperty.call(usageSlots[parent], slotString)) {
+                                usageSlots[parent][slotString] = {};
+                            }
+                            usageSlots[parent][slotString][hardwareSysId] = true;
+                            // deal with duplicates
+                            if (Object.keys(usageSlots[parent][slotString]).length > 1) {
+                                Object.keys(usageSlots[parent][slotString]).forEach(function (collisionSledSysId) {
+                                    collisionSled[collisionSledSysId] = true;
+                                });
+                            }
                         }
                     }
                 }
@@ -278,12 +305,15 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         });
         return {
             collisionHardware: collisionHardware,
+            collisionSled: collisionSled,
             rackHardwareBadData: rackHardwareBadData,
             rackHardwareChassisNetwork: rackHardwareChassisNetwork,
             rackHardwareChassisSled: rackHardwareChassisSled,
             rackHardwarePdu: rackHardwarePdu,
             rackHardwareRackMounted: rackHardwareRackMounted,
+            rackHardwareRacks: rackHardwareRacks,
             rackHardwareResult: rackHardwareResult,
+            usageSlots: usageSlots,
             usageUnits: usageUnits
         };
     };
@@ -410,11 +440,12 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
     //
     var modelData = getModel(modelSysIdUnique);
     //
-    var _c = calculateSortedHardware(hardwareData, modelData), collisionHardware = _c.collisionHardware, rackHardwareBadData = _c.rackHardwareBadData, rackHardwareChassisNetwork = _c.rackHardwareChassisNetwork, rackHardwareChassisSled = _c.rackHardwareChassisSled, rackHardwarePdu = _c.rackHardwarePdu, rackHardwareRackMounted = _c.rackHardwareRackMounted, rackHardwareResult = _c.rackHardwareResult, usageUnits = _c.usageUnits;
+    var _c = calculateSortedHardware(hardwareData, modelData), collisionHardware = _c.collisionHardware, collisionSled = _c.collisionSled, rackHardwareBadData = _c.rackHardwareBadData, rackHardwareChassisNetwork = _c.rackHardwareChassisNetwork, rackHardwareChassisSled = _c.rackHardwareChassisSled, rackHardwarePdu = _c.rackHardwarePdu, rackHardwareRackMounted = _c.rackHardwareRackMounted, rackHardwareRacks = _c.rackHardwareRacks, rackHardwareResult = _c.rackHardwareResult, usageSlots = _c.usageSlots, usageUnits = _c.usageUnits;
     // return data
     return {
         ciSysIdUnique: ciSysIdUnique,
         collisionHardware: collisionHardware,
+        collisionSled: collisionSled,
         hardwareData: hardwareData,
         hardwareSysIdUnique: hardwareSysIdUnique,
         modelData: modelData,
@@ -425,10 +456,12 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         rackHardwareChassisSled: rackHardwareChassisSled,
         rackHardwarePdu: rackHardwarePdu,
         rackHardwareRackMounted: rackHardwareRackMounted,
+        rackHardwareRacks: rackHardwareRacks,
         rackHardwareResult: rackHardwareResult,
         rackNameSysId: rackNameSysId,
         rackSysIdName: rackSysIdName,
         skuSysIdUnique: skuSysIdUnique,
+        usageSlots: usageSlots,
         usageUnits: usageUnits
     };
 };
