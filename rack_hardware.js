@@ -1,4 +1,4 @@
-var getSortedRackHardware = function (rackSysIdArray) {
+var redbeardRackHardwareSort = function (rackSysIdArray) {
     var checkInteger = function (testVariable) {
         if (typeof testVariable === 'string') {
             if (!Number.isNaN(parseInt(testVariable, 10))) {
@@ -15,20 +15,6 @@ var getSortedRackHardware = function (rackSysIdArray) {
         }
         return null;
     };
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
     var testValidChassisNetwork = function (hardwareData, hardware) {
         if (hardware.parent === null) {
             return {
@@ -375,13 +361,6 @@ var getSortedRackHardware = function (rackSysIdArray) {
                 if (tempModelSysId !== null) {
                     modelSysIdUnique[tempModelSysId] = true;
                 }
-                // // store leaf switches for network environment query
-                // if (tempCiSysId !== null && hardRackSysId !== null) {
-                //   if (tempCiName !== null && tempCiName.startsWith('LFAS')) {
-                //     netEnvCiSysIdRackSysId[tempCiSysId] = hardRackSysId;
-                //   }
-                // }
-                // this will get replaced with the new maxPorts field in the model table
             }
         }
         return {
@@ -434,13 +413,13 @@ var getSortedRackHardware = function (rackSysIdArray) {
     var _c = calculateSortedHardware(hardwareData, modelData), collisionHardware = _c.collisionHardware, rackHardwareBadData = _c.rackHardwareBadData, rackHardwareChassisNetwork = _c.rackHardwareChassisNetwork, rackHardwareChassisSled = _c.rackHardwareChassisSled, rackHardwarePdu = _c.rackHardwarePdu, rackHardwareRackMounted = _c.rackHardwareRackMounted, rackHardwareResult = _c.rackHardwareResult, usageUnits = _c.usageUnits;
     // return data
     return {
-        // ciSysIdUnique,
+        ciSysIdUnique: ciSysIdUnique,
         collisionHardware: collisionHardware,
         hardwareData: hardwareData,
-        // hardwareSysIdUnique,
+        hardwareSysIdUnique: hardwareSysIdUnique,
         modelData: modelData,
-        // modelSysIdUnique,
-        // skuSysIdUnique,
+        modelSysIdUnique: modelSysIdUnique,
+        skuSysIdUnique: skuSysIdUnique,
         rackData: rackData,
         rackHardwareBadData: rackHardwareBadData,
         rackHardwareChassisNetwork: rackHardwareChassisNetwork,
@@ -454,4 +433,5 @@ var getSortedRackHardware = function (rackSysIdArray) {
     };
 };
 var testRackSysIds = ['bc22df4adb1ec70cab79f7d41d9619f6', 'b817db4edb168bc010b6f1561d961914', 'f4738c21dbb1c7442b56541adc96196a', 'b1c34461dbb1c7442b56541adc96198f', 'efd3cc61dbb1c7442b56541adc961978', 'bdba2b74db271788259e5898dc9619a4', '3abaa3f4db271788259e5898dc9619ab', '3bba63f4db271788259e5898dc961971', '30cae3f4db271788259e5898dc961926', '0aca67f4db271788259e5898dc961979'];
-gs.print(getSortedRackHardware(testRackSysIds));
+var results = redbeardRackHardwareSort(testRackSysIds);
+gs.print(results);
