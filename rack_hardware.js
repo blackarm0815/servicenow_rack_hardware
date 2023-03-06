@@ -15,6 +15,94 @@ var getSortedRackHardware = function (rackSysIdArray) {
         }
         return null;
     };
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    var testIfSled = function (hardware, modelData) {
+        // bullshit code
+        if (Object.keys(modelData).length > 0) {
+            return false;
+        }
+        return true;
+    };
+    var processSleds = function (hardwareData, hardwareSysId, modelData, rackHardwareBadData, rackHardwareChassisNetwork, rackHardwareChassisSled, rackHardwarePdu, rackHardwareRackMounted, rackHardwareResult) {
+        if (testIfSled(hardwareData[hardwareSysId], modelData)) {
+            rackHardwareResult[hardwareSysId].push('is a sled');
+        }
+    };
+    var testIfRack = function (hardware, modelData) {
+        if (hardware.modelSysId !== null) {
+            if (Object.prototype.hasOwnProperty.call(modelData, hardware.modelSysId)) {
+                if (modelData[hardware.modelSysId].deviceCategory === 'Rack') {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+    var processRacks = function (hardwareData, hardwareSysId, modelData, rackHardwareBadData, rackHardwareChassisNetwork, rackHardwareChassisSled, rackHardwarePdu, rackHardwareRackMounted, rackHardwareResult) {
+        if (testIfRack(hardwareData[hardwareSysId], modelData)) {
+            rackHardwareResult[hardwareSysId].push('is a rack');
+        }
+        else {
+            processSleds(hardwareData, hardwareSysId, modelData, rackHardwareBadData, rackHardwareChassisNetwork, rackHardwareChassisSled, rackHardwarePdu, rackHardwareRackMounted, rackHardwareResult);
+        }
+    };
+    var calculateSortedHardware = function (hardwareData, modelData) {
+        var rackHardwareBadData = {};
+        var rackHardwareChassisNetwork = {};
+        var rackHardwareChassisSled = {};
+        var rackHardwarePdu = {};
+        var rackHardwareRackMounted = {};
+        var rackHardwareResult = {};
+        Object.keys(hardwareData).forEach(function (hardwareSysId) {
+            rackHardwareResult[hardwareSysId] = [];
+            processRacks(hardwareData, hardwareSysId, modelData, rackHardwareBadData, rackHardwareChassisNetwork, rackHardwareChassisSled, rackHardwarePdu, rackHardwareRackMounted, rackHardwareResult);
+        });
+        return {
+            rackHardwareBadData: rackHardwareBadData,
+            rackHardwareChassisNetwork: rackHardwareChassisNetwork,
+            rackHardwareChassisSled: rackHardwareChassisSled,
+            rackHardwarePdu: rackHardwarePdu,
+            rackHardwareRackMounted: rackHardwareRackMounted,
+            rackHardwareResult: rackHardwareResult
+        };
+    };
+    var getModel = function (modelSysIdUnique) {
+        var modelData = {};
+        if (Object.keys(modelSysIdUnique).length > 0) {
+            var grModel = new GlideRecord('cmdb_model');
+            grModel.addQuery('sys_id', 'IN', Object.keys(modelSysIdUnique));
+            grModel.query();
+            while (grModel.next()) {
+                var tempModelSysId = checkString(grModel.getUniqueValue());
+                if (tempModelSysId !== null) {
+                    modelData[tempModelSysId] = {
+                        deviceCategory: checkString(grModel.u_device_category.getDisplayValue()),
+                        displayName: checkString(grModel.display_name.getValue()),
+                        endOfFirmwareSupportDate: checkString(grModel.u_end_of_software_maintenance_date.getValue()),
+                        endOfLife: checkString(grModel.u_end_of_life.getValue()),
+                        endOfSale: checkString(grModel.u_end_of_sale.getValue()),
+                        maxChildren: checkInteger(grModel.u_max_children.getValue()),
+                        modelHeight: checkInteger(grModel.rack_units.getValue()),
+                        modelName: checkString(grModel.name.getValue())
+                    };
+                }
+            }
+        }
+        return modelData;
+    };
     var getHardware = function (tempRackSysIdArray) {
         var ciSysIdUnique = {};
         var hardwareData = {};
@@ -192,18 +280,45 @@ var getSortedRackHardware = function (rackSysIdArray) {
             rackSysIdName: rackSysIdName
         };
     };
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
     // collect data
     var _a = getRackData(rackSysIdArray), rackData = _a.rackData, rackNameSysId = _a.rackNameSysId, rackSysIdName = _a.rackSysIdName;
     var _b = getHardware(rackSysIdArray), ciSysIdUnique = _b.ciSysIdUnique, hardwareData = _b.hardwareData, hardwareSysIdUnique = _b.hardwareSysIdUnique, modelSysIdUnique = _b.modelSysIdUnique, skuSysIdUnique = _b.skuSysIdUnique;
     var _c = getRackZoneData(rackSysIdName), rackSysIdRowSysId = _c.rackSysIdRowSysId, rowNameRackNameList = _c.rowNameRackNameList, rowNameRowSysId = _c.rowNameRowSysId, rowSysIdRoomSysId = _c.rowSysIdRoomSysId;
+    var modelData = getModel(modelSysIdUnique);
+    var _d = calculateSortedHardware(hardwareData, modelData), rackHardwareBadData = _d.rackHardwareBadData, rackHardwareChassisNetwork = _d.rackHardwareChassisNetwork, rackHardwareChassisSled = _d.rackHardwareChassisSled, rackHardwarePdu = _d.rackHardwarePdu, rackHardwareRackMounted = _d.rackHardwareRackMounted, rackHardwareResult = _d.rackHardwareResult;
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
     // return data
     return {
         ciSysIdUnique: ciSysIdUnique,
         hardwareData: hardwareData,
         hardwareSysIdUnique: hardwareSysIdUnique,
+        modelData: modelData,
         modelSysIdUnique: modelSysIdUnique,
         skuSysIdUnique: skuSysIdUnique,
         rackData: rackData,
+        rackHardwareBadData: rackHardwareBadData,
+        rackHardwareChassisNetwork: rackHardwareChassisNetwork,
+        rackHardwareChassisSled: rackHardwareChassisSled,
+        rackHardwarePdu: rackHardwarePdu,
+        rackHardwareRackMounted: rackHardwareRackMounted,
+        rackHardwareResult: rackHardwareResult,
         rackNameSysId: rackNameSysId,
         rackSysIdName: rackSysIdName,
         rackSysIdRowSysId: rackSysIdRowSysId,

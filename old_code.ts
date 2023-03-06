@@ -20,16 +20,6 @@
 //   green: number;
 //   red: number;
 // }
-// interface Model {
-//   deviceCategory: null | string;
-//   displayName: null | string;
-//   endOfFirmwareSupportDate: null | string;
-//   endOfLife: null | string;
-//   endOfSale: null | string;
-//   maxChildren: null | number;
-//   modelHeight: null | number;
-//   modelName: null | string;
-// }
 // interface NetworkAdaptor {
 //   adaptorName: string;
 //   cmdbCiStatus: string;
@@ -143,7 +133,6 @@
   const hardwareRackMounted: Record<string, Record<string, boolean>> = {};
   // reasons why hardware failed the various tests
   // hardware sys_id, array of failures
-  const hardwareSortResult: Record<string, Array<string>> = {};
   // u_hardware_sku_configurations sys_id, derate kw as float
   const hardwareSkuSysIdDerateKw: Record<string, number> = {};
   // u_hardware_sku_configurations sys_id, name
@@ -961,27 +950,6 @@
         }
         if (tempPatchModelSysId !== null) {
           modelSysIdUnique[tempPatchModelSysId] = true;
-        }
-      }
-      if (Object.keys(modelSysIdUnique).length > 0) {
-        // @ts-ignore
-        const grModel = new GlideRecord('cmdb_model');
-        grModel.addQuery('sys_id', 'IN', Object.keys(modelSysIdUnique));
-        grModel.query();
-        while (grModel.next()) {
-          const tempModelSysId = checkString(grModel.getUniqueValue());
-          if (tempModelSysId !== null) {
-            modelData[tempModelSysId] = {
-              deviceCategory: checkString(grModel.u_device_category.getDisplayValue()),
-              displayName: checkString(grModel.display_name.getValue()),
-              endOfFirmwareSupportDate: checkString(grModel.u_end_of_software_maintenance_date.getValue()),
-              endOfLife: checkString(grModel.u_end_of_life.getValue()),
-              endOfSale: checkString(grModel.u_end_of_sale.getValue()),
-              maxChildren: checkInteger(grModel.u_max_children.getValue()),
-              modelHeight: checkInteger(grModel.rack_units.getValue()),
-              modelName: checkString(grModel.name.getValue()),
-            };
-          }
         }
       }
       // network adaptors

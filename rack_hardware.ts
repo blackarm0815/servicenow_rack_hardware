@@ -17,6 +17,16 @@ interface Hardware {
   state: null | string;
   substate: null | string;
 }
+interface Model {
+  deviceCategory: null | string;
+  displayName: null | string;
+  endOfFirmwareSupportDate: null | string;
+  endOfLife: null | string;
+  endOfSale: null | string;
+  maxChildren: null | number;
+  modelHeight: null | number;
+  modelName: null | string;
+}
 interface Rack {
   rackHeight: null | number;
   rackName: null | string;
@@ -43,6 +53,236 @@ const getSortedRackHardware = (
       }
     }
     return null;
+  };
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  const testIfSled = (
+    hardware: Hardware,
+    modelData: Record<string, Model>,
+  ) => {
+    // bullshit code
+    if (Object.keys(modelData).length > 0) {
+      return false;
+    }
+    return true;
+  };
+
+
+
+
+
+  const testValidChassisSled = (
+    hardwareData: Record<string, Hardware>,
+    hardwareSysId: string,
+  ) => {
+    const parentSysId = hardwareData[hardwareSysId].parent;
+    if (hardwareData[hardwareSysId].slot === null) {
+      return {
+        pass: false,
+        failReport: 'not a valid sled - slot missing',
+      };
+    }
+    if (hardwareData[hardwareSysId].slot === 0) {
+      return {
+        pass: false,
+        failReport: 'not a valid sled - slot is zero',
+      };
+    }
+    if (parentSysId === null) {
+      return {
+        pass: false,
+        failReport: 'not a valid sled - parent missing',
+      };
+    }
+    if (parentSysId !== null && !Object.prototype.hasOwnProperty.call(hardwareData, parentSysId)) {
+      return {
+        pass: false,
+        failReport: 'not a valid sled - parent not found in hardwareData',
+      };
+    }
+    if (parentSysId !== null && hardwareData[parentSysId].rackSysId !== hardwareData[hardwareSysId].rackSysId) {
+      return {
+        pass: false,
+        failReport: 'not a valid sled - parent not in same rack',
+      };
+    }
+    return {
+      pass: true,
+      failReport: '',
+    };
+  };
+
+  // const testIfSled = (
+  //   hardwareSysId: string,
+  // ) => {
+  //   const sortResult = testValidChassisSled(hardwareSysId);
+  //   const testParent = hardwareData[hardwareSysId].parent;
+  //   const testSlot = hardwareData[hardwareSysId].slot;
+  //   if (sortResult.pass && testParent !== null && testSlot !== null) {
+  //     // valid sled detected
+  //     if (!Object.prototype.hasOwnProperty.call(hardwareChassisSled, testParent)) {
+  //       hardwareChassisSled[testParent] = {};
+  //     }
+  //     hardwareChassisSled[testParent][hardwareSysId] = true;
+  //     generateUsageSlots(
+  //       hardwareSysId,
+  //       testParent,
+  //       testSlot,
+  //     );
+  //   } else {
+  //     hardwareSortResult[hardwareSysId].push(sortResult.failReport);
+  //     testRackMounted(hardwareSysId);
+  //   }
+  // };
+
+
+
+
+
+  const processSleds = (
+    hardwareData: Record<string, Hardware>,
+    hardwareSysId: string,
+    modelData: Record<string, Model>,
+    rackHardwareBadData: Record<string, Record<string, boolean>>,
+    rackHardwareChassisNetwork: Record<string, Record<string, boolean>>,
+    rackHardwareChassisSled: Record<string, Record<string, boolean>>,
+    rackHardwarePdu: Record<string, Record<string, boolean>>,
+    rackHardwareRackMounted: Record<string, Record<string, boolean>>,
+    rackHardwareResult: Record<string, Array<string>>,
+    rackSysId: string,
+  ) => {
+    const {
+      pass,
+      failReport,
+    } = testValidChassisSled(
+      hardwareData,
+      hardwareSysId,
+    )
+    if (pass) {
+      rackHardwareResult[hardwareSysId].push('is a sled');
+      if (!Object.prototype.hasOwnProperty.call(rackHardwareChassisSled, rackSysId)) {
+        rackHardwareChassisSled[rackSysId] = {};
+      }
+      rackHardwareChassisSled[rackSysId][hardwareSysId] = true;
+    }
+  };
+  const testIfRack = (
+    hardware: Hardware,
+    modelData: Record<string, Model>,
+  ) => {
+    if (hardware.modelSysId !== null) {
+      if (Object.prototype.hasOwnProperty.call(modelData, hardware.modelSysId)) {
+        if (modelData[hardware.modelSysId].deviceCategory === 'Rack') {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+  const processRacks = (
+    hardwareData: Record<string, Hardware>,
+    hardwareSysId: string,
+    modelData: Record<string, Model>,
+    rackHardwareBadData: Record<string, Record<string, boolean>>,
+    rackHardwareChassisNetwork: Record<string, Record<string, boolean>>,
+    rackHardwareChassisSled: Record<string, Record<string, boolean>>,
+    rackHardwarePdu: Record<string, Record<string, boolean>>,
+    rackHardwareRackMounted: Record<string, Record<string, boolean>>,
+    rackHardwareResult: Record<string, Array<string>>,
+    rackSysId: string,
+  ) => {
+    if (testIfRack(hardwareData[hardwareSysId], modelData)) {
+      rackHardwareResult[hardwareSysId].push('is a rack');
+    } else {
+      processSleds(
+        hardwareData,
+        hardwareSysId,
+        modelData,
+        rackHardwareBadData,
+        rackHardwareChassisNetwork,
+        rackHardwareChassisSled,
+        rackHardwarePdu,
+        rackHardwareRackMounted,
+        rackHardwareResult,
+        rackSysId,
+      );
+    }
+  };
+  const calculateSortedHardware = (
+    hardwareData: Record<string, Hardware>,
+    modelData: Record<string, Model>,
+  ) => {
+    const rackHardwareBadData: Record<string, Record<string, boolean>> = {};
+    const rackHardwareChassisNetwork: Record<string, Record<string, boolean>> = {};
+    const rackHardwareChassisSled: Record<string, Record<string, boolean>> = {};
+    const rackHardwarePdu: Record<string, Record<string, boolean>> = {};
+    const rackHardwareRackMounted: Record<string, Record<string, boolean>> = {};
+    const rackHardwareResult: Record<string, Array<string>> = {};
+    Object.keys(hardwareData).forEach((hardwareSysId) => {
+      const { rackSysId } = hardwareData[hardwareSysId];
+      if (rackSysId !== null) {
+        rackHardwareResult[hardwareSysId] = [];
+        processRacks(
+          hardwareData,
+          hardwareSysId,
+          modelData,
+          rackHardwareBadData,
+          rackHardwareChassisNetwork,
+          rackHardwareChassisSled,
+          rackHardwarePdu,
+          rackHardwareRackMounted,
+          rackHardwareResult,
+          rackSysId,
+        );
+      }
+    });
+    return {
+      rackHardwareBadData,
+      rackHardwareChassisNetwork,
+      rackHardwareChassisSled,
+      rackHardwarePdu,
+      rackHardwareRackMounted,
+      rackHardwareResult,
+    };
+  };
+  const getModel = (
+    modelSysIdUnique: Record<string, boolean>,
+  ) => {
+    const modelData: Record<string, Model> = {};
+    if (Object.keys(modelSysIdUnique).length > 0) {
+      // @ts-ignore
+      const grModel = new GlideRecord('cmdb_model');
+      grModel.addQuery('sys_id', 'IN', Object.keys(modelSysIdUnique));
+      grModel.query();
+      while (grModel.next()) {
+        const tempModelSysId = checkString(grModel.getUniqueValue());
+        if (tempModelSysId !== null) {
+          modelData[tempModelSysId] = {
+            deviceCategory: checkString(grModel.u_device_category.getDisplayValue()),
+            displayName: checkString(grModel.display_name.getValue()),
+            endOfFirmwareSupportDate: checkString(grModel.u_end_of_software_maintenance_date.getValue()),
+            endOfLife: checkString(grModel.u_end_of_life.getValue()),
+            endOfSale: checkString(grModel.u_end_of_sale.getValue()),
+            maxChildren: checkInteger(grModel.u_max_children.getValue()),
+            modelHeight: checkInteger(grModel.rack_units.getValue()),
+            modelName: checkString(grModel.name.getValue()),
+          };
+        }
+      }
+    }
+    return modelData;
   };
   const getHardware = (
     tempRackSysIdArray: Array<string>,
@@ -232,6 +472,15 @@ const getSortedRackHardware = (
       rackSysIdName,
     };
   };
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
   // collect data
   const {
     rackData,
@@ -251,14 +500,42 @@ const getSortedRackHardware = (
     rowNameRowSysId,
     rowSysIdRoomSysId,
   } = getRackZoneData(rackSysIdName);
+  const modelData = getModel(modelSysIdUnique);
+  const {
+    rackHardwareBadData,
+    rackHardwareChassisNetwork,
+    rackHardwareChassisSled,
+    rackHardwarePdu,
+    rackHardwareRackMounted,
+    rackHardwareResult,
+  } = calculateSortedHardware(
+    hardwareData,
+    modelData,
+  );
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
   // return data
   return {
     ciSysIdUnique,
     hardwareData,
     hardwareSysIdUnique,
+    modelData,
     modelSysIdUnique,
     skuSysIdUnique,
     rackData,
+    rackHardwareBadData,
+    rackHardwareChassisNetwork,
+    rackHardwareChassisSled,
+    rackHardwarePdu,
+    rackHardwareRackMounted,
+    rackHardwareResult,
     rackNameSysId,
     rackSysIdName,
     rackSysIdRowSysId,
