@@ -419,7 +419,6 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         hardwareSysIdUnique: hardwareSysIdUnique,
         modelData: modelData,
         modelSysIdUnique: modelSysIdUnique,
-        skuSysIdUnique: skuSysIdUnique,
         rackData: rackData,
         rackHardwareBadData: rackHardwareBadData,
         rackHardwareChassisNetwork: rackHardwareChassisNetwork,
@@ -429,6 +428,7 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         rackHardwareResult: rackHardwareResult,
         rackNameSysId: rackNameSysId,
         rackSysIdName: rackSysIdName,
+        skuSysIdUnique: skuSysIdUnique,
         usageUnits: usageUnits
     };
 };

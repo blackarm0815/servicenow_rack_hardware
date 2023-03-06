@@ -31,6 +31,25 @@ interface Rack {
   rackHeight: null | number;
   rackName: null | string;
 }
+interface RackHardwareSortResult {
+  ciSysIdUnique: Record<string, boolean>;
+  collisionHardware: Record<string, boolean>;
+  hardwareData: Record<string, Hardware>;
+  hardwareSysIdUnique: Record<string, boolean>;
+  modelData: Record<string, Model>;
+  modelSysIdUnique: Record<string, boolean>;
+  rackData: Record<string, Rack>;
+  rackHardwareBadData: Record<string, Record<string, boolean>>;
+  rackHardwareChassisNetwork: Record<string, Record<string, boolean>>;
+  rackHardwareChassisSled: Record<string, Record<string, boolean>>;
+  rackHardwarePdu: Record<string, Record<string, boolean>>;
+  rackHardwareRackMounted: Record<string, Record<string, boolean>>;
+  rackHardwareResult: Record<string, Array<string>>;
+  rackNameSysId: Record<string, string>;
+  rackSysIdName: Record<string, string>;
+  skuSysIdUnique: Record<string, boolean>;
+  usageUnits: Record<string, Record<string, Record<string, string>>>;
+}
 const redbeardRackHardwareSort = (
   rackSysIdArray: Array<string>,
 ) => {
@@ -522,7 +541,6 @@ const redbeardRackHardwareSort = (
     hardwareSysIdUnique,
     modelData,
     modelSysIdUnique,
-    skuSysIdUnique,
     rackData,
     rackHardwareBadData,
     rackHardwareChassisNetwork,
@@ -532,10 +550,11 @@ const redbeardRackHardwareSort = (
     rackHardwareResult,
     rackNameSysId,
     rackSysIdName,
+    skuSysIdUnique,
     usageUnits,
   };
 };
 const testRackSysIds = ['bc22df4adb1ec70cab79f7d41d9619f6', 'b817db4edb168bc010b6f1561d961914', 'f4738c21dbb1c7442b56541adc96196a', 'b1c34461dbb1c7442b56541adc96198f', 'efd3cc61dbb1c7442b56541adc961978', 'bdba2b74db271788259e5898dc9619a4', '3abaa3f4db271788259e5898dc9619ab', '3bba63f4db271788259e5898dc961971', '30cae3f4db271788259e5898dc961926', '0aca67f4db271788259e5898dc961979'];
-const results = redbeardRackHardwareSort(testRackSysIds);
+const results: RackHardwareSortResult = redbeardRackHardwareSort(testRackSysIds);
 // @ts-ignore
 gs.print(results);
