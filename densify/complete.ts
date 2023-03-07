@@ -1,3 +1,32 @@
+interface CiData {
+  assignmentGroupName: null | string;
+  assignmentGroupSysId: null | string;
+  cmdbNetworkSecurityZone: null | string;
+  cmdbStatus: null | string;
+  fqdn: null | string;
+  hardwareStatus: null | string;
+  iPAddress: null | string;
+  primaryBusinessServiceName: null | string;
+  primaryBusinessServiceSysId: null | string;
+  serviceGroupName: null | string;
+  serviceGroupSysId: null | string;
+  status: null | string;
+  supportGroupName: null | string;
+  supportGroupSysId: null | string;
+  sysClassName: null | string;
+}
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
 interface Hardware {
   assetTag: null | string;
   ciName: null | string;
@@ -603,6 +632,96 @@ const redbeardRackHardwareSort = (
     usageUnits,
   };
 };
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+const checkInteger = (
+  testVariable: any,
+) => {
+  if (typeof testVariable === 'string') {
+    if (!Number.isNaN(parseInt(testVariable, 10))) {
+      return parseInt(testVariable, 10);
+    }
+  }
+  return null;
+};
+const checkString = (
+  testVariable: any,
+) => {
+  if (typeof testVariable === 'string') {
+    if (testVariable !== '') {
+      return testVariable;
+    }
+  }
+  return null;
+};
+const getCiData = (
+  uniqueCiSysId: Record<string, boolean>,
+) => {
+  const ciData: Record<string, CiData> = {};
+  if (Object.keys(uniqueCiSysId).length > 0) {
+    // @ts-ignore
+    const grCiHardware = new GlideRecord('cmdb_ci_hardware');
+    grCiHardware.addQuery('sys_id', 'IN', Object.keys(uniqueCiSysId));
+    grCiHardware.query();
+    while (grCiHardware.next()) {
+      const tempCiSysId = checkString(grCiHardware.getUniqueValue());
+      if (tempCiSysId !== null) {
+        ciData[tempCiSysId] = {
+          assignmentGroupName: checkString(grCiHardware.assignment_group.getDisplayValue()),
+          assignmentGroupSysId: checkString(grCiHardware.assignment_group.getValue()),
+          cmdbNetworkSecurityZone: checkString(grCiHardware.u_cmdb_network_security_zone.getDisplayValue()),
+          cmdbStatus: checkString(grCiHardware.u_cmdb_ci_status.getDisplayValue()),
+          fqdn: checkString(grCiHardware.fqdn.getDisplayValue()),
+          hardwareStatus: checkString(grCiHardware.hardware_status.getValue()),
+          iPAddress: checkString(grCiHardware.ip_address.getDisplayValue()),
+          primaryBusinessServiceName: checkString(grCiHardware.u_cmdb_ci_service.getDisplayValue()),
+          primaryBusinessServiceSysId: checkString(grCiHardware.u_cmdb_ci_service.getValue()),
+          serviceGroupName: checkString(grCiHardware.u_patching_group.getDisplayValue()),
+          serviceGroupSysId: checkString(grCiHardware.u_patching_group.getValue()),
+          status: checkString(grCiHardware.install_status.getDisplayValue()),
+          supportGroupName: checkString(grCiHardware.support_group.getDisplayValue()),
+          supportGroupSysId: checkString(grCiHardware.support_group.getValue()),
+          sysClassName: checkString(grCiHardware.sys_class_name.getValue()),
+        };
+      }
+    }
+  }
+  return ciData;
+};
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
 const testRackSysIds = [
   'bc22df4adb1ec70cab79f7d41d9619f6',
   'b817db4edb168bc010b6f1561d961914',
@@ -616,5 +735,33 @@ const testRackSysIds = [
   '0aca67f4db271788259e5898dc961979',
 ];
 const results: RackHardwareSortResult = redbeardRackHardwareSort(testRackSysIds);
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+const ciData = getCiData(results.uniqueCiSysId);
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+let output = '';
+output += `results = ${JSON.stringify(results, null, 2)};\n`;
+output += `ciData = ${JSON.stringify(ciData, null, 2)};\n`;
 // @ts-ignore
-gs.print(results);
+gs.print(output);

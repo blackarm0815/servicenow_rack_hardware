@@ -1,20 +1,4 @@
-// interface CiData {
-//   assignmentGroupName: null | string;
-//   assignmentGroupSysId: null | string;
-//   cmdbNetworkSecurityZone: null | string;
-//   cmdbStatus: null | string;
-//   fqdn: null | string;
-//   hardwareStatus: null | string;
-//   iPAddress: null | string;
-//   primaryBusinessServiceName: null | string;
-//   primaryBusinessServiceSysId: null | string;
-//   serviceGroupName: null | string;
-//   serviceGroupSysId: null | string;
-//   status: null | string;
-//   supportGroupName: null | string;
-//   supportGroupSysId: null | string;
-//   sysClassName: null | string;
-// }
+
 // interface Color {
 //   blue: number;
 //   green: number;
@@ -770,51 +754,6 @@
           }
           if (derateKw !== null && tempSkuSysId !== null) {
             hardwareSkuSysIdDerateKw[tempSkuSysId] = derateKw;
-          }
-        }
-      }
-      if (Object.keys(ciSysIdUnique).length > 0) {
-        // @ts-ignore
-        const grCiHardware = new GlideRecord('cmdb_ci_hardware');
-        grCiHardware.addQuery('sys_id', 'IN', Object.keys(ciSysIdUnique));
-        grCiHardware.query();
-        while (grCiHardware.next()) {
-          const tempAssignmentGroupSysId = checkString(grCiHardware.assignment_group.getValue());
-          const tempCiSysId = checkString(grCiHardware.getUniqueValue());
-          const tempCmdbStatus = checkString(grCiHardware.u_cmdb_ci_status.getDisplayValue());
-          const tempPrimaryBusinessServiceSysId = checkString(grCiHardware.u_cmdb_ci_service.getValue());
-          const tempServiceGroupSysId = checkString(grCiHardware.u_patching_group.getValue());
-          const tempSysClassName = checkString(grCiHardware.sys_class_name.getValue());
-          if (tempCiSysId !== null) {
-            ciData[tempCiSysId] = {
-              assignmentGroupName: checkString(grCiHardware.assignment_group.getDisplayValue()),
-              assignmentGroupSysId: tempAssignmentGroupSysId,
-              cmdbNetworkSecurityZone: checkString(grCiHardware.u_cmdb_network_security_zone.getDisplayValue()),
-              cmdbStatus: tempCmdbStatus,
-              fqdn: checkString(grCiHardware.fqdn.getDisplayValue()),
-              hardwareStatus: checkString(grCiHardware.hardware_status.getValue()),
-              iPAddress: checkString(grCiHardware.ip_address.getDisplayValue()),
-              primaryBusinessServiceName: checkString(grCiHardware.u_cmdb_ci_service.getDisplayValue()),
-              primaryBusinessServiceSysId: tempPrimaryBusinessServiceSysId,
-              serviceGroupName: checkString(grCiHardware.u_patching_group.getDisplayValue()),
-              serviceGroupSysId: tempServiceGroupSysId,
-              status: checkString(grCiHardware.install_status.getDisplayValue()),
-              supportGroupName: checkString(grCiHardware.support_group.getDisplayValue()),
-              supportGroupSysId: checkString(grCiHardware.support_group.getValue()),
-              sysClassName: tempSysClassName,
-            };
-            if (tempSysClassName === 'cmdb_ci_ip_switch' && tempCmdbStatus !== 'Retired') {
-              switchCiUnique[tempCiSysId] = true;
-            }
-          }
-          if (tempAssignmentGroupSysId !== null) {
-            groupsUnique[tempAssignmentGroupSysId] = true;
-          }
-          if (tempServiceGroupSysId !== null) {
-            groupsUnique[tempServiceGroupSysId] = true;
-          }
-          if (tempPrimaryBusinessServiceSysId !== null) {
-            serviceSysIdUnique[tempPrimaryBusinessServiceSysId] = true;
           }
         }
       }

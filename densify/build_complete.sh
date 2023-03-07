@@ -16,6 +16,3 @@ else
 fi
 echo
 
-# clean up
-grep -v '// @ts-ignore' complete.js | sed 's/    /  /g' > ../complete.js
-rm complete.js
