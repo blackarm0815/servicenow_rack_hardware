@@ -158,12 +158,59 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
             testReport: 'not a valid rack - model deviceCategory is not Rack'
         };
     };
-    var calculateSortedHardware = function (hardwareData, modelData) {
+    var testValidPatchpanel = function (patchpanel, modelData) {
+        if (patchpanel.patchRackU === null) {
+            return {
+                pass: false,
+                testReport: 'not a valid  patchpanel - u_rack_u is missing'
+            };
+        }
+        if (patchpanel.patchRackU === 0) {
+            return {
+                pass: false,
+                testReport: 'not a valid  patchpanel - u_rack_u is zero'
+            };
+        }
+        if (patchpanel.patchModelSysId === null) {
+            return {
+                pass: false,
+                testReport: 'not a valid patchpanel - does not have a model'
+            };
+        }
+        if (!Object.prototype.hasOwnProperty.call(modelData, patchpanel.patchModelSysId)) {
+            return {
+                pass: false,
+                testReport: 'not a valid patchpanel - model not found'
+            };
+        }
+        var model = modelData[patchpanel.patchModelSysId];
+        if (model.modelHeight === null) {
+            return {
+                pass: false,
+                testReport: 'not a valid patchpanel - model height missing'
+            };
+        }
+        if (model.modelHeight < 1) {
+            return {
+                pass: false,
+                testReport: 'not a valid patchpanel - model height is less than 1'
+            };
+        }
+        return {
+            pass: true,
+            testReport: 'is a valid patchpanel'
+        };
+    };
+    var calculateSortedHardware = function (hardwareData, modelData, patchpanelData) {
         // boolean to stop tests being run once the hardware is identified
         var isUnidentified;
         // datastructures
         var collisionHardware = {};
+        var collisionPatchpanel = {};
         var collisionSled = {};
+        var patchpanelBadData = {};
+        var patchpanelRackMounted = {};
+        var patchpanelSortResult = {};
         var rackHardwareBadData = {};
         var rackHardwareChassisNetwork = {};
         var rackHardwareChassisSled = {};
@@ -173,6 +220,9 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         var rackHardwareResult = {};
         var usageSlots = {};
         var usageUnits = {};
+        //
+        // process hardware
+        //
         Object.keys(hardwareData).forEach(function (hardwareSysId) {
             // generate needed variables
             var hardware = hardwareData[hardwareSysId];
@@ -304,9 +354,76 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
                 }
             }
         });
+        //
+        // process patchpanels
+        //
+        Object.keys(patchpanelData).forEach(function (patchpanelSysId) {
+            var patchRackSysId = patchpanelData[patchpanelSysId].patchRackSysId;
+            var _a = patchpanelData[patchpanelSysId], patchModelSysId = _a.patchModelSysId, patchRackU = _a.patchRackU;
+            var modelHeight = 0;
+            if (patchModelSysId !== null && Object.prototype.hasOwnProperty.call(modelData, patchModelSysId)) {
+                var testModelHeight = modelData[patchModelSysId].modelHeight;
+                if (testModelHeight !== null) {
+                    modelHeight = testModelHeight;
+                }
+            }
+            if (patchRackSysId) {
+                // check if patchpanel is valid
+                var resultPanel = testValidPatchpanel(patchpanelData[patchpanelSysId], modelData);
+                patchpanelSortResult[patchpanelSysId] = resultPanel.testReport;
+                if (resultPanel.pass) {
+                    // valid patchpanel
+                    if (!Object.prototype.hasOwnProperty.call(patchpanelRackMounted, patchRackSysId)) {
+                        patchpanelRackMounted[patchRackSysId] = {};
+                    }
+                    patchpanelRackMounted[patchRackSysId][patchpanelSysId] = true;
+                    // build collision data
+                    if (patchRackU !== null) {
+                        var _loop_2 = function (loop) {
+                            var unitString = (patchRackU + loop).toString();
+                            // generate usage
+                            if (!Object.prototype.hasOwnProperty.call(usageUnits, patchRackSysId)) {
+                                usageUnits[patchRackSysId] = {};
+                            }
+                            if (!Object.prototype.hasOwnProperty.call(usageUnits[patchRackSysId], unitString)) {
+                                usageUnits[patchRackSysId][unitString] = {};
+                            }
+                            usageUnits[patchRackSysId][unitString][patchRackSysId] = 'u_patch_panel';
+                            // deal with duplicates
+                            if (Object.keys(usageUnits[patchRackSysId][unitString]).length > 1) {
+                                Object.keys(usageUnits[patchRackSysId][unitString]).forEach(function (collisionSysId) {
+                                    // alm_hardware or u_patch_panel
+                                    if (usageUnits[patchRackSysId][unitString][collisionSysId] === 'alm_hardware') {
+                                        collisionHardware[collisionSysId] = true;
+                                    }
+                                    if (usageUnits[patchRackSysId][unitString][collisionSysId] === 'u_patch_panel') {
+                                        collisionPatchpanel[collisionSysId] = true;
+                                    }
+                                });
+                            }
+                        };
+                        for (var loop = 0; loop < modelHeight; loop += 1) {
+                            _loop_2(loop);
+                        }
+                    }
+                    // generate unit usage and check for collisions
+                }
+                else {
+                    // bad patchpanel
+                    if (!Object.prototype.hasOwnProperty.call(patchpanelBadData, patchRackSysId)) {
+                        patchpanelBadData[patchRackSysId] = {};
+                    }
+                    patchpanelBadData[patchRackSysId][patchpanelSysId] = true;
+                }
+            }
+        });
         return {
             collisionHardware: collisionHardware,
+            collisionPatchpanel: collisionPatchpanel,
             collisionSled: collisionSled,
+            patchpanelBadData: patchpanelBadData,
+            patchpanelRackMounted: patchpanelRackMounted,
+            patchpanelSortResult: patchpanelSortResult,
             rackHardwareBadData: rackHardwareBadData,
             rackHardwareChassisNetwork: rackHardwareChassisNetwork,
             rackHardwareChassisSled: rackHardwareChassisSled,
@@ -318,12 +435,12 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
             usageUnits: usageUnits
         };
     };
-    var getModel = function (uniqueModelSysId) {
+    var getModel = function (uniqueHardwareModelSysId) {
         var modelData = {};
-        if (Object.keys(uniqueModelSysId).length > 0) {
+        if (Object.keys(uniqueHardwareModelSysId).length > 0) {
             // @ts-ignore
             var grModel = new GlideRecord('cmdb_model');
-            grModel.addQuery('sys_id', 'IN', Object.keys(uniqueModelSysId));
+            grModel.addQuery('sys_id', 'IN', Object.keys(uniqueHardwareModelSysId));
             grModel.query();
             while (grModel.next()) {
                 var tempModelSysId = checkString(grModel.getUniqueValue());
@@ -347,7 +464,7 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         var uniqueCiSysId = {};
         var hardwareData = {};
         var uniqueHardwareSysId = {};
-        var uniqueModelSysId = {};
+        var uniqueHardwareModelSysId = {};
         var uniqueSkuSysId = {};
         if (tempRackSysIdArray.length > 0) {
             // @ts-ignore
@@ -393,7 +510,7 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
                         uniqueSkuSysId[tempSkuSysId] = true;
                     }
                     if (tempModelSysId !== null) {
-                        uniqueModelSysId[tempModelSysId] = true;
+                        uniqueHardwareModelSysId[tempModelSysId] = true;
                     }
                 }
             }
@@ -402,7 +519,7 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
             uniqueCiSysId: uniqueCiSysId,
             hardwareData: hardwareData,
             uniqueHardwareSysId: uniqueHardwareSysId,
-            uniqueModelSysId: uniqueModelSysId,
+            uniqueHardwareModelSysId: uniqueHardwareModelSysId,
             uniqueSkuSysId: uniqueSkuSysId
         };
     };
@@ -442,20 +559,56 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
             uniqueRackSysId: uniqueRackSysId
         };
     };
+    var getPatchPanelData = function (testRackSysIds, uniqueHardwareModelSysId) {
+        var patchpanelData = {};
+        // take the hardware model sys_ids and add the patchpanel model sys_ids
+        var uniqueModelSysId = uniqueHardwareModelSysId;
+        // @ts-ignore
+        var grPatch = new GlideRecord('u_patch_panel');
+        grPatch.addQuery('u_rack', 'IN', testRackSysIds);
+        grPatch.query();
+        while (grPatch.next()) {
+            var tempPatchPanelSysId = checkString(grPatch.getUniqueValue());
+            var tempPatchModelSysId = checkString(grPatch.model_id.getValue());
+            if (tempPatchPanelSysId !== null) {
+                patchpanelData[tempPatchPanelSysId] = {
+                    patchAssetTag: checkString(grPatch.asset_tag.getValue()),
+                    patchModelSysId: tempPatchModelSysId,
+                    patchName: checkString(grPatch.name.getValue()),
+                    patchRackSysId: checkString(grPatch.u_rack.getValue()),
+                    patchRackU: checkInteger(grPatch.u_rack_u.getValue())
+                };
+            }
+            if (tempPatchModelSysId !== null) {
+                uniqueModelSysId[tempPatchModelSysId] = true;
+            }
+        }
+        return {
+            patchpanelData: patchpanelData,
+            uniqueModelSysId: uniqueModelSysId
+        };
+    };
     // collect data
     var _a = getRackData(rackSysIdArray), rackData = _a.rackData, rackNameSysId = _a.rackNameSysId, rackSysIdName = _a.rackSysIdName, uniqueRackSysId = _a.uniqueRackSysId;
     //
-    var _b = getHardware(rackSysIdArray), uniqueCiSysId = _b.uniqueCiSysId, hardwareData = _b.hardwareData, uniqueHardwareSysId = _b.uniqueHardwareSysId, uniqueModelSysId = _b.uniqueModelSysId, uniqueSkuSysId = _b.uniqueSkuSysId;
+    var _b = getHardware(rackSysIdArray), uniqueCiSysId = _b.uniqueCiSysId, hardwareData = _b.hardwareData, uniqueHardwareSysId = _b.uniqueHardwareSysId, uniqueHardwareModelSysId = _b.uniqueHardwareModelSysId, uniqueSkuSysId = _b.uniqueSkuSysId;
+    //
+    var _c = getPatchPanelData(rackSysIdArray, uniqueHardwareModelSysId), patchpanelData = _c.patchpanelData, uniqueModelSysId = _c.uniqueModelSysId;
     //
     var modelData = getModel(uniqueModelSysId);
     //
-    var _c = calculateSortedHardware(hardwareData, modelData), collisionHardware = _c.collisionHardware, collisionSled = _c.collisionSled, rackHardwareBadData = _c.rackHardwareBadData, rackHardwareChassisNetwork = _c.rackHardwareChassisNetwork, rackHardwareChassisSled = _c.rackHardwareChassisSled, rackHardwarePdu = _c.rackHardwarePdu, rackHardwareRackMounted = _c.rackHardwareRackMounted, rackHardwareRacks = _c.rackHardwareRacks, rackHardwareResult = _c.rackHardwareResult, usageSlots = _c.usageSlots, usageUnits = _c.usageUnits;
+    var _d = calculateSortedHardware(hardwareData, modelData, patchpanelData), collisionHardware = _d.collisionHardware, collisionPatchpanel = _d.collisionPatchpanel, collisionSled = _d.collisionSled, patchpanelBadData = _d.patchpanelBadData, patchpanelRackMounted = _d.patchpanelRackMounted, patchpanelSortResult = _d.patchpanelSortResult, rackHardwareBadData = _d.rackHardwareBadData, rackHardwareChassisNetwork = _d.rackHardwareChassisNetwork, rackHardwareChassisSled = _d.rackHardwareChassisSled, rackHardwarePdu = _d.rackHardwarePdu, rackHardwareRackMounted = _d.rackHardwareRackMounted, rackHardwareRacks = _d.rackHardwareRacks, rackHardwareResult = _d.rackHardwareResult, usageSlots = _d.usageSlots, usageUnits = _d.usageUnits;
     // return data
     return {
         collisionHardware: collisionHardware,
+        collisionPatchpanel: collisionPatchpanel,
         collisionSled: collisionSled,
         hardwareData: hardwareData,
         modelData: modelData,
+        patchpanelBadData: patchpanelBadData,
+        patchpanelData: patchpanelData,
+        patchpanelRackMounted: patchpanelRackMounted,
+        patchpanelSortResult: patchpanelSortResult,
         rackData: rackData,
         rackHardwareBadData: rackHardwareBadData,
         rackHardwareChassisNetwork: rackHardwareChassisNetwork,
@@ -475,6 +628,21 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         usageUnits: usageUnits
     };
 };
+// const testRackSysIds = [
+//   'bc22df4adb1ec70cab79f7d41d9619f6',
+//   'b817db4edb168bc010b6f1561d961914',
+//   'f4738c21dbb1c7442b56541adc96196a',
+//   'b1c34461dbb1c7442b56541adc96198f',
+//   'efd3cc61dbb1c7442b56541adc961978',
+//   'bdba2b74db271788259e5898dc9619a4',
+//   '3abaa3f4db271788259e5898dc9619ab',
+//   '3bba63f4db271788259e5898dc961971',
+//   '30cae3f4db271788259e5898dc961926',
+//   '0aca67f4db271788259e5898dc961979',
+// ];
+// const results: RackHardwareSortResult = redbeardRackHardwareSort(testRackSysIds);
+// // @ts-ignore
+// gs.print(results);
 //
 //
 //
@@ -500,6 +668,26 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
 //
 //
 //
+var checkTime = function (testVariable) {
+    // @ts-ignore
+    var tempTime = new GlideDateTime(testVariable).getNumericValue();
+    if (tempTime !== 0) {
+        // @ts-ignore
+        return tempTime;
+    }
+    return null;
+};
+var checkJiraUrl = function (testVariable) {
+    if (typeof testVariable === 'string') {
+        if (testVariable.startsWith('https://jira.godaddy.com/browse/')) {
+            return testVariable;
+        }
+        if (testVariable.startsWith('https://godaddy-corp.atlassian.net/browse/')) {
+            return testVariable;
+        }
+    }
+    return null;
+};
 var checkInteger = function (testVariable) {
     if (typeof testVariable === 'string') {
         if (!Number.isNaN(parseInt(testVariable, 10))) {
@@ -672,6 +860,68 @@ var getPowerIq = function (rackNameUnique) {
     }
     return rackNamePowerIqMax;
 };
+var getReservations = function (rackSysIdArray) {
+    var rackReservation = {};
+    var rackUnitReservation = {};
+    // @ts-ignore
+    var grResRack = new GlideRecord('u_reservation_rack');
+    grResRack.addQuery('u_rack', 'IN', rackSysIdArray);
+    grResRack.addEncodedQuery('u_reservation_ends>=javascript:gs.beginningOfToday()');
+    grResRack.query();
+    while (grResRack.next()) {
+        // safe
+        var tempRackResSysId = grResRack.getUniqueValue();
+        // test
+        var tempRackSysId = checkString(grResRack.u_rack.getValue());
+        // store
+        if (tempRackSysId !== null) {
+            if (!Object.prototype.hasOwnProperty.call(rackReservation, tempRackSysId)) {
+                rackReservation[tempRackSysId] = {};
+            }
+            if (tempRackResSysId !== null) {
+                rackReservation[tempRackSysId][tempRackResSysId] = {
+                    jiraUrl: checkJiraUrl(grResRack.u_jira_url.getValue()),
+                    reservationMade: checkTime(grResRack.sys_created_on.getValue()),
+                    reservationExpires: checkTime(grResRack.u_reservation_ends.getValue()),
+                    reservationType: 'rack',
+                    userName: checkString(grResRack.sys_created_by.getValue())
+                };
+            }
+        }
+    }
+    // @ts-ignore
+    var grResUnit = new GlideRecord('u_reservation_rack_unit');
+    grResUnit.addQuery('u_rack', 'IN', rackSysIdArray);
+    grResUnit.addEncodedQuery('u_reservation_ends>=javascript:gs.beginningOfToday()');
+    grResUnit.query();
+    while (grResUnit.next()) {
+        // safe
+        var tempUnitResSysId = grResUnit.getUniqueValue();
+        // test
+        var tempRackSysId = checkString(grResUnit.u_rack.getValue());
+        var tempRackUnit = checkInteger(grResUnit.u_rack_unit.getValue());
+        // store
+        if (tempRackSysId !== null && tempRackUnit !== null) {
+            if (!Object.prototype.hasOwnProperty.call(rackUnitReservation, tempRackSysId)) {
+                rackUnitReservation[tempRackSysId] = {};
+            }
+            if (!Object.prototype.hasOwnProperty.call(rackUnitReservation[tempRackSysId], tempRackUnit)) {
+                rackUnitReservation[tempRackSysId][tempRackUnit] = {};
+            }
+            rackUnitReservation[tempRackSysId][tempRackUnit][tempUnitResSysId] = {
+                jiraUrl: checkJiraUrl(grResUnit.u_jira_url.getValue()),
+                reservationMade: checkTime(grResUnit.sys_created_on.getValue()),
+                reservationExpires: checkTime(grResUnit.u_reservation_ends.getValue()),
+                reservationType: 'unit',
+                userName: checkString(grResUnit.sys_created_by.getValue())
+            };
+        }
+    }
+    return {
+        rackReservation: rackReservation,
+        rackUnitReservation: rackUnitReservation
+    };
+};
 //
 //
 //
@@ -751,107 +1001,6 @@ var getPowerIq = function (rackNameUnique) {
 //
 //
 //
-var testValidPatchpanel = function (patchpanel) {
-    if (patchpanel.patchRackU === null) {
-        return {
-            pass: false,
-            testReport: 'not a valid  patchpanel - u_rack_u is missing'
-        };
-    }
-    if (patchpanel.patchRackU === 0) {
-        return {
-            pass: false,
-            testReport: 'not a valid  patchpanel - u_rack_u is zero'
-        };
-    }
-    if (patchpanel.patchModelSysId === null) {
-        return {
-            pass: false,
-            testReport: 'not a valid patchpanel - does not have a model'
-        };
-    }
-    if (!Object.prototype.hasOwnProperty.call(modelData, patchpanel.patchModelSysId)) {
-        return {
-            pass: false,
-            testReport: 'not a valid patchpanel - model not found'
-        };
-    }
-    var model = modelData[patchpanel.patchModelSysId];
-    if (model.modelHeight === null) {
-        return {
-            pass: false,
-            testReport: 'not a valid patchpanel - model height missing'
-        };
-    }
-    if (model.modelHeight < 1) {
-        return {
-            pass: false,
-            testReport: 'not a valid patchpanel - model height is less than 1'
-        };
-    }
-    return {
-        pass: true,
-        testReport: 'is a valid sled'
-    };
-};
-var sortPatchPanels = function (oldUsageUnits, patchpanelData) {
-    var collisionPatchpanel = {};
-    var newUsageUnits = oldUsageUnits;
-    Object.keys(patchpanelData).forEach(function (patchpanelSysId) {
-        var resultPatchPanel = testValidPatchpanel(patchpanelData[patchpanelSysId]);
-    });
-};
-var getPatchPanelData = function (testRackSysIds) {
-    var patchpanelData = {};
-    var patchpanelModelData = {};
-    var uniquePatchModelSysId = {};
-    // @ts-ignore
-    var grPatch = new GlideRecord('u_patch_panel');
-    grPatch.addQuery('u_rack', 'IN', testRackSysIds);
-    grPatch.query();
-    while (grPatch.next()) {
-        var tempPatchPanelSysId = checkString(grPatch.getUniqueValue());
-        var tempPatchModelSysId = checkString(grPatch.model_id.getValue());
-        if (tempPatchPanelSysId !== null) {
-            patchpanelData[tempPatchPanelSysId] = {
-                patchAssetTag: checkString(grPatch.asset_tag.getValue()),
-                patchModelSysId: tempPatchModelSysId,
-                patchName: checkString(grPatch.name.getValue()),
-                patchRackSysId: checkString(grPatch.u_rack.getValue()),
-                patchRackU: checkInteger(grPatch.u_rack_u.getValue())
-            };
-        }
-        if (tempPatchModelSysId !== null) {
-            uniquePatchModelSysId[tempPatchModelSysId] = true;
-        }
-    }
-    if (Object.keys(uniquePatchModelSysId).length > 0) {
-        // @ts-ignore
-        var grModel = new GlideRecord('cmdb_model');
-        grModel.addQuery('sys_id', 'IN', Object.keys(uniquePatchModelSysId));
-        grModel.query();
-        while (grModel.next()) {
-            var tempModelSysId = checkString(grModel.getUniqueValue());
-            if (tempModelSysId !== null) {
-                patchpanelModelData[tempModelSysId] = {
-                    deviceCategory: checkString(grModel.u_device_category.getDisplayValue()),
-                    displayName: checkString(grModel.display_name.getValue()),
-                    endOfFirmwareSupportDate: checkString(grModel.u_end_of_software_maintenance_date.getValue()),
-                    endOfLife: checkString(grModel.u_end_of_life.getValue()),
-                    endOfSale: checkString(grModel.u_end_of_sale.getValue()),
-                    maxChildren: checkInteger(grModel.u_max_children.getValue()),
-                    modelHeight: checkInteger(grModel.rack_units.getValue()),
-                    modelName: checkString(grModel.name.getValue())
-                };
-            }
-        }
-    }
-    return {
-        patchpanelData: patchpanelData,
-        patchpanelModelData: patchpanelModelData
-    };
-};
-//
 //
 //
 //
@@ -879,17 +1028,6 @@ var testRackSysIds = [
     '30cae3f4db271788259e5898dc961926',
     '0aca67f4db271788259e5898dc961979',
 ];
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
 var results = redbeardRackHardwareSort(testRackSysIds);
 //
 var uniqueSkuSysId = results.uniqueSkuSysId;
@@ -904,8 +1042,7 @@ var _b = getMetaData(environmentValue, testRackSysIds), rackNameUnique = _b.rack
 //
 var rackNamePowerIqMax = getPowerIq(rackNameUnique);
 //
-var _c = getPatchPanelData(testRackSysIds), patchpanelData = _c.patchpanelData, patchpanelModelData = _c.patchpanelModelData;
-//
+var _c = getReservations(testRackSysIds), rackReservation = _c.rackReservation, rackUnitReservation = _c.rackUnitReservation;
 //
 //
 //
@@ -923,13 +1060,11 @@ output += "results = ".concat(JSON.stringify(results, null, 2), ";\n");
 output += "ciData = ".concat(JSON.stringify(ciData, null, 2), ";\n");
 output += "switchRemotePorts = ".concat(JSON.stringify(switchRemotePorts, null, 2), ";\n");
 output += "skuData = ".concat(JSON.stringify(skuData, null, 2), ";\n");
-output += "switchRemotePorts = ".concat(JSON.stringify(switchRemotePorts, null, 2), ";\n");
 output += "rackSysIdMetaSysId = ".concat(JSON.stringify(rackSysIdMetaSysId, null, 2), ";\n");
 output += "rackSysIdPowerDesign = ".concat(JSON.stringify(rackSysIdPowerDesign, null, 2), ";\n");
 output += "rackNamePowerIqMax = ".concat(JSON.stringify(rackNamePowerIqMax, null, 2), ";\n");
-// output += `xxxxxx = ${JSON.stringify(xxxxxx, null, 2)};\n`;
-// output += `xxxxxx = ${JSON.stringify(xxxxxx, null, 2)};\n`;
-// output += `xxxxxx = ${JSON.stringify(xxxxxx, null, 2)};\n`;
+output += "rackUnitReservation = ".concat(JSON.stringify(rackUnitReservation, null, 2), ";\n");
+output += "rackReservation = ".concat(JSON.stringify(rackReservation, null, 2), ";\n");
 // output += `xxxxxx = ${JSON.stringify(xxxxxx, null, 2)};\n`;
 // output += `xxxxxx = ${JSON.stringify(xxxxxx, null, 2)};\n`;
 // @ts-ignore

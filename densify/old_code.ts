@@ -24,13 +24,6 @@
 //   rackState: null | string;
 //   rotation: null | number;
 // }
-// interface Reservation {
-//   jiraUrl: null | string;
-//   reservationExpires: null | number;
-//   reservationMade: null | number;
-//   reservationType: string;
-//   userName: null | string;
-// }
 
 
 
@@ -164,7 +157,6 @@
   // rack reservations
   // key is cmdb_ci_rack sys_id
   // second key is u_reservation_rack sys_id
-  const rackReservation: Record<string, Record<string, Reservation>> = {};
   // rack network environments (from switches in racks)
   // first key is cmdb_ci_rack sys_id
   // second key is u_cmdb_ci_network_environment name
@@ -175,7 +167,6 @@
   // first key is cmdb_ci_rack sys_id
   // second key is the unit number
   // third key is u_reservation_rack_unit sys_id (allows multiple per unit)
-  const rackUnitReservation: Record<string, Record<number, Record<string, Reservation>>> = {};
   // key is ci sys_id
   // if hardware's ci appears in sc_req_item it indicates it is Pending hardware reclaim
   const scReqItemCI: Record<string, boolean> = {};
@@ -532,60 +523,28 @@
           rotation: checkInteger(grRackMeta.u_rotation.getValue()),
         };
       }
-      // @ts-ignore
-      const grResRack = new GlideRecord('u_reservation_rack');
-      grResRack.addQuery('u_rack', 'IN', rackSysIdList);
-      grResRack.addEncodedQuery('u_reservation_ends>=javascript:gs.beginningOfToday()');
-      grResRack.query();
-      while (grResRack.next()) {
-        // safe
-        const tempRackResSysId: string = grResRack.getUniqueValue();
-        // test
-        tempRackSysId = checkString(grResRack.u_rack.getValue());
-        // store
-        if (tempRackSysId !== null) {
-          if (!Object.prototype.hasOwnProperty.call(rackReservation, tempRackSysId)) {
-            rackReservation[tempRackSysId] = {};
-          }
-          if (tempRackResSysId !== null) {
-            rackReservation[tempRackSysId][tempRackResSysId] = {
-              jiraUrl: checkJiraUrl(grResRack.u_jira_url.getValue()),
-              reservationMade: checkTime(grResRack.sys_created_on.getValue()),
-              reservationExpires: checkTime(grResRack.u_reservation_ends.getValue()),
-              reservationType: 'rack',
-              userName: checkString(grResRack.sys_created_by.getValue()),
-            };
-          }
-        }
-      }
-      // @ts-ignore
-      const grResUnit = new GlideRecord('u_reservation_rack_unit');
-      grResUnit.addQuery('u_rack', 'IN', rackSysIdList);
-      grResUnit.addEncodedQuery('u_reservation_ends>=javascript:gs.beginningOfToday()');
-      grResUnit.query();
-      while (grResUnit.next()) {
-        // safe
-        const tempUnitResSysId: string = grResUnit.getUniqueValue();
-        // test
-        tempRackSysId = checkString(grResUnit.u_rack.getValue());
-        tempRackUnit = checkInteger(grResUnit.u_rack_unit.getValue());
-        // store
-        if (tempRackSysId !== null && tempRackUnit !== null) {
-          if (!Object.prototype.hasOwnProperty.call(rackUnitReservation, tempRackSysId)) {
-            rackUnitReservation[tempRackSysId] = {};
-          }
-          if (!Object.prototype.hasOwnProperty.call(rackUnitReservation[tempRackSysId], tempRackUnit)) {
-            rackUnitReservation[tempRackSysId][tempRackUnit] = {};
-          }
-          rackUnitReservation[tempRackSysId][tempRackUnit][tempUnitResSysId] = {
-            jiraUrl: checkJiraUrl(grResUnit.u_jira_url.getValue()),
-            reservationMade: checkTime(grResUnit.sys_created_on.getValue()),
-            reservationExpires: checkTime(grResUnit.u_reservation_ends.getValue()),
-            reservationType: 'unit',
-            userName: checkString(grResUnit.sys_created_by.getValue()),
-          };
-        }
-      }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       if (Object.keys(netEnvCiSysIdRackSysId).length > 0) {
         // @ts-ignore
         const grNetEnv = new GlideRecord('cmdb_ci_ip_switch');
