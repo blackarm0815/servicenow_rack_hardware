@@ -8,13 +8,6 @@
 //   adaptorName: string;
 //   cmdbCiStatus: string;
 // }
-// interface Patchpanel {
-//   patchAssetTag: null | string;
-//   patchModelSysId: null | string;
-//   patchName: null | string;
-//   patchRackSysId: null | string;
-//   patchRackU: null | number;
-// }
 // interface RackMeta {
 //   dimensionX: null | number;
 //   dimensionY: null | number;
@@ -133,7 +126,6 @@
   // first key is switch alm_hardware sys_id
   // second key is the cmdb_ci_network_adapter sys_id of the port on the switch
   // third key is the cmdb_ci_network_adapter sys_id of the remote port (allows duplicates)
-  const networkAdaptorsRemote: Record<string, Record<string, Record<string, NetworkAdaptor>>> = {};
   // first key is ci sys_id from alm_hardware
   // second key is rack sys_id
   // this is used when finding the network environment of racks
@@ -144,7 +136,6 @@
   const patchpanelBadData: Record<string, Record<string, boolean>> = {};
   // key is u_patch_panel sys_id
   // value is patchpanel data
-  const patchpanelData: Record<string, Patchpanel> = {};
   // first key is cmdb_ci_rack sys_id
   // second key is u_patch_panel sys_id of patchpanel in rack
   // boolean only true
@@ -267,60 +258,6 @@
       };
     }
   };
-  const testValidPatchpanel = (
-    patchpanelSysId: string,
-  ) => {
-    const patchpanel = patchpanelData[patchpanelSysId];
-    try {
-      if (patchpanel.patchRackU === null) {
-        return {
-          pass: false,
-          failReport: 'not a valid  patchpanel - u_rack_u is missing',
-        };
-      }
-      if (patchpanel.patchRackU === 0) {
-        return {
-          pass: false,
-          failReport: 'not a valid  patchpanel - u_rack_u is zero',
-        };
-      }
-      if (patchpanel.patchModelSysId === null) {
-        return {
-          pass: false,
-          failReport: 'not a valid patchpanel - does not have a model',
-        };
-      }
-      if (!Object.prototype.hasOwnProperty.call(modelData, patchpanel.patchModelSysId)) {
-        return {
-          pass: false,
-          failReport: 'not a valid patchpanel - model not found',
-        };
-      }
-      const model: Model = modelData[patchpanel.patchModelSysId];
-      if (model.modelHeight === null) {
-        return {
-          pass: false,
-          failReport: 'not a valid patchpanel - model height missing',
-        };
-      }
-      if (model.modelHeight < 1) {
-        return {
-          pass: false,
-          failReport: 'not a valid patchpanel - model height is less than 1',
-        };
-      }
-      return {
-        pass: true,
-        failReport: '',
-      };
-    } catch (err) {
-      errorLog('testValidPatchpanel', <string>err);
-      return {
-        pass: false,
-        failReport: 'not a valid patchpanel - function crashed',
-      };
-    }
-  };
   const testValidChassisNetwork = (
     hardwareSysId: string,
   ) => {
@@ -399,46 +336,6 @@
             collisionPatchpanel[collisionSysId] = true;
           }
         });
-      }
-    }
-  };
-  const testPatchPanel = (
-    patchpanelSysId: string,
-  ) => {
-    const patchpanel = patchpanelData[patchpanelSysId];
-    const rackSysId = patchpanel.patchRackSysId;
-    const rackU = patchpanel.patchRackU;
-    const sortResult = testValidPatchpanel(patchpanelSysId);
-    if (rackSysId !== null) {
-      if (sortResult.pass && rackU !== null) {
-        if (!Object.prototype.hasOwnProperty.call(patchpanelRackMounted, rackSysId)) {
-          patchpanelRackMounted[rackSysId] = {};
-        }
-        patchpanelRackMounted[rackSysId][patchpanelSysId] = true;
-        // generate usageUnits for collision testing
-        let modelHeight = 0;
-        const modelSysId = patchpanel.patchModelSysId;
-        if (modelSysId !== null) {
-          if (Object.prototype.hasOwnProperty.call(modelData, modelSysId)) {
-            const testModelHeight = modelData[modelSysId].modelHeight;
-            if (testModelHeight !== null) {
-              modelHeight = testModelHeight;
-            }
-          }
-        }
-        generateUsageUnits(
-          modelHeight,
-          rackSysId,
-          rackU,
-          patchpanelSysId,
-          'u_patch_panel',
-        );
-      } else {
-        patchpanelSortResult[patchpanelSysId] = sortResult.failReport;
-        storePatchpanelBadData(
-          patchpanelSysId,
-          rackSysId,
-        );
       }
     }
   };
@@ -583,9 +480,6 @@
           testSleds(hardwareSysId);
         }
       }
-    });
-    Object.keys(patchpanelData).forEach((patchpanelSysId) => {
-      testPatchPanel(patchpanelSysId);
     });
     // @ts-ignore
     data.hardwareBadData = hardwareBadData;
@@ -810,26 +704,6 @@
           }
         }
       }
-      // @ts-ignore
-      const grPatch = new GlideRecord('u_patch_panel');
-      grPatch.addQuery('u_rack', 'IN', rackSysIdList);
-      grPatch.query();
-      while (grPatch.next()) {
-        const tempPatchPanelSysId = checkString(grPatch.getUniqueValue());
-        const tempPatchModelSysId = checkString(grPatch.model_id.getValue());
-        if (tempPatchPanelSysId !== null) {
-          patchpanelData[tempPatchPanelSysId] = {
-            patchAssetTag: checkString(grPatch.asset_tag.getValue()),
-            patchModelSysId: tempPatchModelSysId,
-            patchName: checkString(grPatch.name.getValue()),
-            patchRackSysId: checkString(grPatch.u_rack.getValue()),
-            patchRackU: checkInteger(grPatch.u_rack_u.getValue()),
-          };
-        }
-        if (tempPatchModelSysId !== null) {
-          modelSysIdUnique[tempPatchModelSysId] = true;
-        }
-      }
       // network adaptors
       // @ts-ignore
       const portLocal = new GlideRecord('cmdb_ci_network_adapter');
@@ -849,41 +723,6 @@
             adaptorName: localAdaptorName,
             cmdbCiStatus: localCmdbCiStatus,
           };
-        }
-      }
-      // @ts-ignore
-      const portRemote = new GlideRecord('cmdb_ci_network_adapter');
-      portRemote.addQuery('u_switch', 'IN', Object.keys(switchCiUnique));
-      portRemote.addNotNullQuery('u_switch');
-      // portRemote.addEncodedQuery('nameSTARTSWITHeth');
-      // portRemote.addEncodedQuery('u_switchportSTARTSWITHeth');
-      portRemote.query();
-      while (portRemote.next()) {
-        const adaptorName = checkStringWithDefault('name missing', portRemote.name.getValue());
-        const adaptorSysId = checkString(portRemote.getUniqueValue());
-        const remoteCmdbCiStatus = checkStringWithDefault('status missing', portRemote.u_cmdb_ci_status.getDisplayValue());
-        const remoteName = checkStringWithDefault('name_missing', portRemote.cmdb_ci.getDisplayValue());
-        const switchCiSysId = checkString(portRemote.u_switch.getValue());
-        const switchPortSysId = checkString(portRemote.u_switchport.getValue());
-        if (adaptorSysId !== null && switchCiSysId !== null && switchPortSysId !== null) {
-          // switch has a match
-          if (Object.prototype.hasOwnProperty.call(networkAdaptorsLocal, switchCiSysId)) {
-            // switchport exists on switch
-            if (Object.prototype.hasOwnProperty.call(networkAdaptorsLocal[switchCiSysId], switchPortSysId)) {
-              // prepare networkAdaptorsRemote
-              if (!Object.prototype.hasOwnProperty.call(networkAdaptorsRemote, switchCiSysId)) {
-                networkAdaptorsRemote[switchCiSysId] = {};
-              }
-              if (!Object.prototype.hasOwnProperty.call(networkAdaptorsRemote[switchCiSysId], switchPortSysId)) {
-                networkAdaptorsRemote[switchCiSysId][switchPortSysId] = {};
-              }
-              // store by adaptor sys_id. allows multiples to detect collisions
-              networkAdaptorsRemote[switchCiSysId][switchPortSysId][adaptorSysId] = {
-                adaptorName: `${remoteName} - ${adaptorName}`,
-                cmdbCiStatus: remoteCmdbCiStatus,
-              };
-            }
-          }
         }
       }
       calculateSortedHardware();
