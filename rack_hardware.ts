@@ -32,13 +32,10 @@ interface Rack {
   rackName: null | string;
 }
 interface RackHardwareSortResult {
-  ciSysIdUnique: Record<string, boolean>;
   collisionHardware: Record<string, boolean>;
   collisionSled: Record<string, boolean>,
   hardwareData: Record<string, Hardware>;
-  hardwareSysIdUnique: Record<string, boolean>;
   modelData: Record<string, Model>;
-  modelSysIdUnique: Record<string, boolean>;
   rackData: Record<string, Rack>;
   rackHardwareBadData: Record<string, Record<string, boolean>>;
   rackHardwareChassisNetwork: Record<string, Record<string, boolean>>;
@@ -49,7 +46,11 @@ interface RackHardwareSortResult {
   rackHardwareResult: Record<string, Array<string>>;
   rackNameSysId: Record<string, string>;
   rackSysIdName: Record<string, string>;
-  skuSysIdUnique: Record<string, boolean>;
+  uniqueCiSysId: Record<string, boolean>;
+  uniqueHardwareSysId: Record<string, boolean>;
+  uniqueModelSysId: Record<string, boolean>;
+  uniqueRackSysId: Record<string, boolean>;
+  uniqueSkuSysId: Record<string, boolean>;
   usageSlots: Record<string, Record<string, Record<string, true>>>,
   usageUnits: Record<string, Record<string, Record<string, string>>>;
 }
@@ -414,13 +415,13 @@ const redbeardRackHardwareSort = (
     };
   };
   const getModel = (
-    modelSysIdUnique: Record<string, boolean>,
+    uniqueModelSysId: Record<string, boolean>,
   ) => {
     const modelData: Record<string, Model> = {};
-    if (Object.keys(modelSysIdUnique).length > 0) {
+    if (Object.keys(uniqueModelSysId).length > 0) {
       // @ts-ignore
       const grModel = new GlideRecord('cmdb_model');
-      grModel.addQuery('sys_id', 'IN', Object.keys(modelSysIdUnique));
+      grModel.addQuery('sys_id', 'IN', Object.keys(uniqueModelSysId));
       grModel.query();
       while (grModel.next()) {
         const tempModelSysId = checkString(grModel.getUniqueValue());
@@ -443,11 +444,11 @@ const redbeardRackHardwareSort = (
   const getHardware = (
     tempRackSysIdArray: Array<string>,
   ) => {
-    const ciSysIdUnique: Record<string, boolean> = {};
+    const uniqueCiSysId: Record<string, boolean> = {};
     const hardwareData: Record<string, Hardware> = {};
-    const hardwareSysIdUnique: Record<string, boolean> = {};
-    const modelSysIdUnique: Record<string, boolean> = {};
-    const skuSysIdUnique: Record<string, boolean> = {};
+    const uniqueHardwareSysId: Record<string, boolean> = {};
+    const uniqueModelSysId: Record<string, boolean> = {};
+    const uniqueSkuSysId: Record<string, boolean> = {};
     if (tempRackSysIdArray.length > 0) {
       // @ts-ignore
       const grHardware = new GlideRecord('alm_hardware');
@@ -483,26 +484,26 @@ const redbeardRackHardwareSort = (
             substate: checkString(grHardware.substatus.getValue()),
           };
           if (hardRackSysId !== null) {
-            hardwareSysIdUnique[tempHardwareSysId] = true;
+            uniqueHardwareSysId[tempHardwareSysId] = true;
           }
           if (tempCiSysId !== null) {
-            ciSysIdUnique[tempCiSysId] = true;
+            uniqueCiSysId[tempCiSysId] = true;
           }
           if (tempSkuSysId !== null) {
-            skuSysIdUnique[tempSkuSysId] = true;
+            uniqueSkuSysId[tempSkuSysId] = true;
           }
           if (tempModelSysId !== null) {
-            modelSysIdUnique[tempModelSysId] = true;
+            uniqueModelSysId[tempModelSysId] = true;
           }
         }
       }
     }
     return {
-      ciSysIdUnique,
+      uniqueCiSysId,
       hardwareData,
-      hardwareSysIdUnique,
-      modelSysIdUnique,
-      skuSysIdUnique,
+      uniqueHardwareSysId,
+      uniqueModelSysId,
+      uniqueSkuSysId,
     };
   };
   const getRackData = (
@@ -511,6 +512,7 @@ const redbeardRackHardwareSort = (
     const rackData: Record<string, Rack> = {};
     const rackNameSysId: Record<string, string> = {};
     const rackSysIdName: Record<string, string> = {};
+    const uniqueRackSysId: Record<string, boolean> = {};
     if (tempRackSysIdArray.length > 0) {
       // @ts-ignore
       const grRack = new GlideRecord('cmdb_ci_rack');
@@ -531,6 +533,7 @@ const redbeardRackHardwareSort = (
           if (rackName !== null) {
             rackSysIdName[rackSysId] = rackName;
           }
+          uniqueRackSysId[rackSysId] = true;
         }
       }
     }
@@ -538,6 +541,7 @@ const redbeardRackHardwareSort = (
       rackData,
       rackNameSysId,
       rackSysIdName,
+      uniqueRackSysId,
     };
   };
   // collect data
@@ -545,17 +549,18 @@ const redbeardRackHardwareSort = (
     rackData,
     rackNameSysId,
     rackSysIdName,
+    uniqueRackSysId,
   } = getRackData(rackSysIdArray);
   //
   const {
-    ciSysIdUnique,
+    uniqueCiSysId,
     hardwareData,
-    hardwareSysIdUnique,
-    modelSysIdUnique,
-    skuSysIdUnique,
+    uniqueHardwareSysId,
+    uniqueModelSysId,
+    uniqueSkuSysId,
   } = getHardware(rackSysIdArray);
   //
-  const modelData = getModel(modelSysIdUnique);
+  const modelData = getModel(uniqueModelSysId);
   //
   const {
     collisionHardware,
@@ -575,13 +580,10 @@ const redbeardRackHardwareSort = (
   );
   // return data
   return {
-    ciSysIdUnique,
     collisionHardware,
     collisionSled,
     hardwareData,
-    hardwareSysIdUnique,
     modelData,
-    modelSysIdUnique,
     rackData,
     rackHardwareBadData,
     rackHardwareChassisNetwork,
@@ -592,7 +594,11 @@ const redbeardRackHardwareSort = (
     rackHardwareResult,
     rackNameSysId,
     rackSysIdName,
-    skuSysIdUnique,
+    uniqueCiSysId,
+    uniqueHardwareSysId,
+    uniqueModelSysId,
+    uniqueRackSysId,
+    uniqueSkuSysId,
     usageSlots,
     usageUnits,
   };

@@ -318,11 +318,11 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
       usageUnits: usageUnits
     };
   };
-  var getModel = function (modelSysIdUnique) {
+  var getModel = function (uniqueModelSysId) {
     var modelData = {};
-    if (Object.keys(modelSysIdUnique).length > 0) {
+    if (Object.keys(uniqueModelSysId).length > 0) {
       var grModel = new GlideRecord('cmdb_model');
-      grModel.addQuery('sys_id', 'IN', Object.keys(modelSysIdUnique));
+      grModel.addQuery('sys_id', 'IN', Object.keys(uniqueModelSysId));
       grModel.query();
       while (grModel.next()) {
         var tempModelSysId = checkString(grModel.getUniqueValue());
@@ -343,11 +343,11 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
     return modelData;
   };
   var getHardware = function (tempRackSysIdArray) {
-    var ciSysIdUnique = {};
+    var uniqueCiSysId = {};
     var hardwareData = {};
-    var hardwareSysIdUnique = {};
-    var modelSysIdUnique = {};
-    var skuSysIdUnique = {};
+    var uniqueHardwareSysId = {};
+    var uniqueModelSysId = {};
+    var uniqueSkuSysId = {};
     if (tempRackSysIdArray.length > 0) {
       var grHardware = new GlideRecord('alm_hardware');
       grHardware.addQuery('u_rack', 'IN', tempRackSysIdArray);
@@ -382,32 +382,33 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
             substate: checkString(grHardware.substatus.getValue())
           };
           if (hardRackSysId !== null) {
-            hardwareSysIdUnique[tempHardwareSysId] = true;
+            uniqueHardwareSysId[tempHardwareSysId] = true;
           }
           if (tempCiSysId !== null) {
-            ciSysIdUnique[tempCiSysId] = true;
+            uniqueCiSysId[tempCiSysId] = true;
           }
           if (tempSkuSysId !== null) {
-            skuSysIdUnique[tempSkuSysId] = true;
+            uniqueSkuSysId[tempSkuSysId] = true;
           }
           if (tempModelSysId !== null) {
-            modelSysIdUnique[tempModelSysId] = true;
+            uniqueModelSysId[tempModelSysId] = true;
           }
         }
       }
     }
     return {
-      ciSysIdUnique: ciSysIdUnique,
+      uniqueCiSysId: uniqueCiSysId,
       hardwareData: hardwareData,
-      hardwareSysIdUnique: hardwareSysIdUnique,
-      modelSysIdUnique: modelSysIdUnique,
-      skuSysIdUnique: skuSysIdUnique
+      uniqueHardwareSysId: uniqueHardwareSysId,
+      uniqueModelSysId: uniqueModelSysId,
+      uniqueSkuSysId: uniqueSkuSysId
     };
   };
   var getRackData = function (tempRackSysIdArray) {
     var rackData = {};
     var rackNameSysId = {};
     var rackSysIdName = {};
+    var uniqueRackSysId = {};
     if (tempRackSysIdArray.length > 0) {
       var grRack = new GlideRecord('cmdb_ci_rack');
       grRack.addQuery('sys_id', 'IN', tempRackSysIdArray);
@@ -427,32 +428,31 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
           if (rackName !== null) {
             rackSysIdName[rackSysId] = rackName;
           }
+          uniqueRackSysId[rackSysId] = true;
         }
       }
     }
     return {
       rackData: rackData,
       rackNameSysId: rackNameSysId,
-      rackSysIdName: rackSysIdName
+      rackSysIdName: rackSysIdName,
+      uniqueRackSysId: uniqueRackSysId
     };
   };
   // collect data
-  var _a = getRackData(rackSysIdArray), rackData = _a.rackData, rackNameSysId = _a.rackNameSysId, rackSysIdName = _a.rackSysIdName;
+  var _a = getRackData(rackSysIdArray), rackData = _a.rackData, rackNameSysId = _a.rackNameSysId, rackSysIdName = _a.rackSysIdName, uniqueRackSysId = _a.uniqueRackSysId;
   //
-  var _b = getHardware(rackSysIdArray), ciSysIdUnique = _b.ciSysIdUnique, hardwareData = _b.hardwareData, hardwareSysIdUnique = _b.hardwareSysIdUnique, modelSysIdUnique = _b.modelSysIdUnique, skuSysIdUnique = _b.skuSysIdUnique;
+  var _b = getHardware(rackSysIdArray), uniqueCiSysId = _b.uniqueCiSysId, hardwareData = _b.hardwareData, uniqueHardwareSysId = _b.uniqueHardwareSysId, uniqueModelSysId = _b.uniqueModelSysId, uniqueSkuSysId = _b.uniqueSkuSysId;
   //
-  var modelData = getModel(modelSysIdUnique);
+  var modelData = getModel(uniqueModelSysId);
   //
   var _c = calculateSortedHardware(hardwareData, modelData), collisionHardware = _c.collisionHardware, collisionSled = _c.collisionSled, rackHardwareBadData = _c.rackHardwareBadData, rackHardwareChassisNetwork = _c.rackHardwareChassisNetwork, rackHardwareChassisSled = _c.rackHardwareChassisSled, rackHardwarePdu = _c.rackHardwarePdu, rackHardwareRackMounted = _c.rackHardwareRackMounted, rackHardwareRacks = _c.rackHardwareRacks, rackHardwareResult = _c.rackHardwareResult, usageSlots = _c.usageSlots, usageUnits = _c.usageUnits;
   // return data
   return {
-    ciSysIdUnique: ciSysIdUnique,
     collisionHardware: collisionHardware,
     collisionSled: collisionSled,
     hardwareData: hardwareData,
-    hardwareSysIdUnique: hardwareSysIdUnique,
     modelData: modelData,
-    modelSysIdUnique: modelSysIdUnique,
     rackData: rackData,
     rackHardwareBadData: rackHardwareBadData,
     rackHardwareChassisNetwork: rackHardwareChassisNetwork,
@@ -463,7 +463,11 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
     rackHardwareResult: rackHardwareResult,
     rackNameSysId: rackNameSysId,
     rackSysIdName: rackSysIdName,
-    skuSysIdUnique: skuSysIdUnique,
+    uniqueCiSysId: uniqueCiSysId,
+    uniqueHardwareSysId: uniqueHardwareSysId,
+    uniqueModelSysId: uniqueModelSysId,
+    uniqueRackSysId: uniqueRackSysId,
+    uniqueSkuSysId: uniqueSkuSysId,
     usageSlots: usageSlots,
     usageUnits: usageUnits
   };
