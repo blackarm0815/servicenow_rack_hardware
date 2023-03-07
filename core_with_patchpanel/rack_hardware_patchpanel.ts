@@ -1,49 +1,3 @@
-interface CiData {
-  assignmentGroupName: null | string;
-  assignmentGroupSysId: null | string;
-  cmdbNetworkSecurityZone: null | string;
-  cmdbStatus: null | string;
-  fqdn: null | string;
-  hardwareStatus: null | string;
-  iPAddress: null | string;
-  primaryBusinessServiceName: null | string;
-  primaryBusinessServiceSysId: null | string;
-  serviceGroupName: null | string;
-  serviceGroupSysId: null | string;
-  status: null | string;
-  supportGroupName: null | string;
-  supportGroupSysId: null | string;
-  sysClassName: null | string;
-}
-interface NetworkAdaptor {
-  adaptorName: string;
-  cmdbCiStatus: string;
-}
-interface UHardwareSkuConfigurations {
-  skuDerate: number | null;
-  skuHeight: number | null;
-  skuMultiple: number | null;
-  skuName: string | null;
-}
-interface Patchpanel {
-  patchAssetTag: null | string;
-  patchModelSysId: null | string;
-  patchName: null | string;
-  patchRackSysId: null | string;
-  patchRackU: null | number;
-}
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
 interface Hardware {
   assetTag: null | string;
   ciName: null | string;
@@ -73,15 +27,27 @@ interface Model {
   modelHeight: null | number;
   modelName: null | string;
 }
+interface Patchpanel {
+  patchAssetTag: null | string;
+  patchModelSysId: null | string;
+  patchName: null | string;
+  patchRackSysId: null | string;
+  patchRackU: null | number;
+}
 interface Rack {
   rackHeight: null | number;
   rackName: null | string;
 }
 interface RackHardwareSortResult {
   collisionHardware: Record<string, boolean>;
+  collisionPatchpanel: Record<string, boolean>;
   collisionSled: Record<string, boolean>,
   hardwareData: Record<string, Hardware>;
   modelData: Record<string, Model>;
+  patchpanelBadData: Record<string, Record<string, boolean>>;
+  patchpanelData: Record<string, Patchpanel>;
+  patchpanelRackMounted: Record<string, Record<string, boolean>>;
+  patchpanelSortResult: Record<string, string>;
   rackData: Record<string, Rack>;
   rackHardwareBadData: Record<string, Record<string, boolean>>;
   rackHardwareChassisNetwork: Record<string, Record<string, boolean>>;
@@ -280,15 +246,66 @@ const redbeardRackHardwareSort = (
       testReport: 'not a valid rack - model deviceCategory is not Rack',
     };
   };
+  const testValidPatchpanel = (
+    patchpanel: Patchpanel,
+    modelData: Record<string, Model>,
+  ) => {
+    if (patchpanel.patchRackU === null) {
+      return {
+        pass: false,
+        testReport: 'not a valid  patchpanel - u_rack_u is missing',
+      };
+    }
+    if (patchpanel.patchRackU === 0) {
+      return {
+        pass: false,
+        testReport: 'not a valid  patchpanel - u_rack_u is zero',
+      };
+    }
+    if (patchpanel.patchModelSysId === null) {
+      return {
+        pass: false,
+        testReport: 'not a valid patchpanel - does not have a model',
+      };
+    }
+    if (!Object.prototype.hasOwnProperty.call(modelData, patchpanel.patchModelSysId)) {
+      return {
+        pass: false,
+        testReport: 'not a valid patchpanel - model not found',
+      };
+    }
+    const model: Model = modelData[patchpanel.patchModelSysId];
+    if (model.modelHeight === null) {
+      return {
+        pass: false,
+        testReport: 'not a valid patchpanel - model height missing',
+      };
+    }
+    if (model.modelHeight < 1) {
+      return {
+        pass: false,
+        testReport: 'not a valid patchpanel - model height is less than 1',
+      };
+    }
+    return {
+      pass: true,
+      testReport: 'is a valid patchpanel',
+    };
+  };
   const calculateSortedHardware = (
     hardwareData: Record<string, Hardware>,
     modelData: Record<string, Model>,
+    patchpanelData: Record<string, Patchpanel>,
   ) => {
     // boolean to stop tests being run once the hardware is identified
     let isUnidentified: boolean;
     // datastructures
     const collisionHardware: Record<string, boolean> = {};
+    const collisionPatchpanel: Record<string, boolean> = {};
     const collisionSled: Record<string, boolean> = {};
+    const patchpanelBadData: Record<string, Record<string, boolean>> = {};
+    const patchpanelRackMounted: Record<string, Record<string, boolean>> = {};
+    const patchpanelSortResult: Record<string, string> = {};
     const rackHardwareBadData: Record<string, Record<string, boolean>> = {};
     const rackHardwareChassisNetwork: Record<string, Record<string, boolean>> = {};
     const rackHardwareChassisSled: Record<string, Record<string, boolean>> = {};
@@ -298,6 +315,9 @@ const redbeardRackHardwareSort = (
     const rackHardwareResult: Record<string, Array<string>> = {};
     const usageSlots: Record<string, Record<string, Record<string, true>>> = {};
     const usageUnits: Record<string, Record<string, Record<string, string>>> = {};
+    //
+    // process hardware
+    //
     Object.keys(hardwareData).forEach((hardwareSysId) => {
       // generate needed variables
       const hardware = hardwareData[hardwareSysId];
@@ -446,9 +466,78 @@ const redbeardRackHardwareSort = (
         }
       }
     });
+    //
+    // process patchpanels
+    //
+    Object.keys(patchpanelData).forEach((patchpanelSysId) => {
+      const { patchRackSysId } = patchpanelData[patchpanelSysId];
+      const {
+        patchModelSysId,
+        patchRackU,
+      } = patchpanelData[patchpanelSysId];
+      let modelHeight = 0;
+      if (patchModelSysId !== null && Object.prototype.hasOwnProperty.call(modelData, patchModelSysId)) {
+        const testModelHeight = modelData[patchModelSysId].modelHeight;
+        if (testModelHeight !== null) {
+          modelHeight = testModelHeight;
+        }
+      }
+      if (patchRackSysId) {
+        // check if patchpanel is valid
+        const resultPanel = testValidPatchpanel(
+          patchpanelData[patchpanelSysId],
+          modelData,
+        );
+        patchpanelSortResult[patchpanelSysId] = resultPanel.testReport;
+        if (resultPanel.pass) {
+          // valid patchpanel
+          if (!Object.prototype.hasOwnProperty.call(patchpanelRackMounted, patchRackSysId)) {
+            patchpanelRackMounted[patchRackSysId] = {};
+          }
+          patchpanelRackMounted[patchRackSysId][patchpanelSysId] = true;
+          // build collision data
+          if (patchRackU !== null) {
+            for (let loop = 0; loop < modelHeight; loop += 1) {
+              const unitString = (patchRackU + loop).toString();
+              // generate usage
+              if (!Object.prototype.hasOwnProperty.call(usageUnits, patchRackSysId)) {
+                usageUnits[patchRackSysId] = {};
+              }
+              if (!Object.prototype.hasOwnProperty.call(usageUnits[patchRackSysId], unitString)) {
+                usageUnits[patchRackSysId][unitString] = {};
+              }
+              usageUnits[patchRackSysId][unitString][patchRackSysId] = 'u_patch_panel';
+              // deal with duplicates
+              if (Object.keys(usageUnits[patchRackSysId][unitString]).length > 1) {
+                Object.keys(usageUnits[patchRackSysId][unitString]).forEach((collisionSysId) => {
+                  // alm_hardware or u_patch_panel
+                  if (usageUnits[patchRackSysId][unitString][collisionSysId] === 'alm_hardware') {
+                    collisionHardware[collisionSysId] = true;
+                  }
+                  if (usageUnits[patchRackSysId][unitString][collisionSysId] === 'u_patch_panel') {
+                    collisionPatchpanel[collisionSysId] = true;
+                  }
+                });
+              }
+            }
+          }
+          // generate unit usage and check for collisions
+        } else {
+          // bad patchpanel
+          if (!Object.prototype.hasOwnProperty.call(patchpanelBadData, patchRackSysId)) {
+            patchpanelBadData[patchRackSysId] = {};
+          }
+          patchpanelBadData[patchRackSysId][patchpanelSysId] = true;
+        }
+      }
+    });
     return {
       collisionHardware,
+      collisionPatchpanel,
       collisionSled,
+      patchpanelBadData,
+      patchpanelRackMounted,
+      patchpanelSortResult,
       rackHardwareBadData,
       rackHardwareChassisNetwork,
       rackHardwareChassisSled,
@@ -461,13 +550,13 @@ const redbeardRackHardwareSort = (
     };
   };
   const getModel = (
-    uniqueModelSysId: Record<string, boolean>,
+    uniqueHardwareModelSysId: Record<string, boolean>,
   ) => {
     const modelData: Record<string, Model> = {};
-    if (Object.keys(uniqueModelSysId).length > 0) {
+    if (Object.keys(uniqueHardwareModelSysId).length > 0) {
       // @ts-ignore
       const grModel = new GlideRecord('cmdb_model');
-      grModel.addQuery('sys_id', 'IN', Object.keys(uniqueModelSysId));
+      grModel.addQuery('sys_id', 'IN', Object.keys(uniqueHardwareModelSysId));
       grModel.query();
       while (grModel.next()) {
         const tempModelSysId = checkString(grModel.getUniqueValue());
@@ -493,7 +582,7 @@ const redbeardRackHardwareSort = (
     const uniqueCiSysId: Record<string, boolean> = {};
     const hardwareData: Record<string, Hardware> = {};
     const uniqueHardwareSysId: Record<string, boolean> = {};
-    const uniqueModelSysId: Record<string, boolean> = {};
+    const uniqueHardwareModelSysId: Record<string, boolean> = {};
     const uniqueSkuSysId: Record<string, boolean> = {};
     if (tempRackSysIdArray.length > 0) {
       // @ts-ignore
@@ -539,7 +628,7 @@ const redbeardRackHardwareSort = (
             uniqueSkuSysId[tempSkuSysId] = true;
           }
           if (tempModelSysId !== null) {
-            uniqueModelSysId[tempModelSysId] = true;
+            uniqueHardwareModelSysId[tempModelSysId] = true;
           }
         }
       }
@@ -548,7 +637,7 @@ const redbeardRackHardwareSort = (
       uniqueCiSysId,
       hardwareData,
       uniqueHardwareSysId,
-      uniqueModelSysId,
+      uniqueHardwareModelSysId,
       uniqueSkuSysId,
     };
   };
@@ -590,6 +679,38 @@ const redbeardRackHardwareSort = (
       uniqueRackSysId,
     };
   };
+  const getPatchPanelData = (
+    testRackSysIds: Array<string>,
+    uniqueHardwareModelSysId: Record<string, boolean>,
+  ) => {
+    const patchpanelData: Record<string, Patchpanel> = {};
+    // take the hardware model sys_ids and add the patchpanel model sys_ids
+    const uniqueModelSysId = uniqueHardwareModelSysId;
+    // @ts-ignore
+    const grPatch = new GlideRecord('u_patch_panel');
+    grPatch.addQuery('u_rack', 'IN', testRackSysIds);
+    grPatch.query();
+    while (grPatch.next()) {
+      const tempPatchPanelSysId = checkString(grPatch.getUniqueValue());
+      const tempPatchModelSysId = checkString(grPatch.model_id.getValue());
+      if (tempPatchPanelSysId !== null) {
+        patchpanelData[tempPatchPanelSysId] = {
+          patchAssetTag: checkString(grPatch.asset_tag.getValue()),
+          patchModelSysId: tempPatchModelSysId,
+          patchName: checkString(grPatch.name.getValue()),
+          patchRackSysId: checkString(grPatch.u_rack.getValue()),
+          patchRackU: checkInteger(grPatch.u_rack_u.getValue()),
+        };
+      }
+      if (tempPatchModelSysId !== null) {
+        uniqueModelSysId[tempPatchModelSysId] = true;
+      }
+    }
+    return {
+      patchpanelData,
+      uniqueModelSysId,
+    };
+  };
   // collect data
   const {
     rackData,
@@ -602,15 +723,27 @@ const redbeardRackHardwareSort = (
     uniqueCiSysId,
     hardwareData,
     uniqueHardwareSysId,
-    uniqueModelSysId,
+    uniqueHardwareModelSysId,
     uniqueSkuSysId,
   } = getHardware(rackSysIdArray);
+  //
+  const {
+    patchpanelData,
+    uniqueModelSysId,
+  } = getPatchPanelData(
+    rackSysIdArray,
+    uniqueHardwareModelSysId,
+  );
   //
   const modelData = getModel(uniqueModelSysId);
   //
   const {
     collisionHardware,
+    collisionPatchpanel,
     collisionSled,
+    patchpanelBadData,
+    patchpanelRackMounted,
+    patchpanelSortResult,
     rackHardwareBadData,
     rackHardwareChassisNetwork,
     rackHardwareChassisSled,
@@ -623,13 +756,19 @@ const redbeardRackHardwareSort = (
   } = calculateSortedHardware(
     hardwareData,
     modelData,
+    patchpanelData,
   );
   // return data
   return {
     collisionHardware,
+    collisionPatchpanel,
     collisionSled,
     hardwareData,
     modelData,
+    patchpanelBadData,
+    patchpanelData,
+    patchpanelRackMounted,
+    patchpanelSortResult,
     rackData,
     rackHardwareBadData,
     rackHardwareChassisNetwork,
@@ -649,451 +788,6 @@ const redbeardRackHardwareSort = (
     usageUnits,
   };
 };
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-// non script include functions
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-const checkInteger = (
-  testVariable: any,
-) => {
-  if (typeof testVariable === 'string') {
-    if (!Number.isNaN(parseInt(testVariable, 10))) {
-      return parseInt(testVariable, 10);
-    }
-  }
-  return null;
-};
-const checkFloat = (
-  testVariable: any,
-) => {
-  if (typeof testVariable === 'string') {
-    if (!Number.isNaN(parseFloat(testVariable))) {
-      return parseFloat(testVariable);
-    }
-  }
-  return null;
-};
-const checkString = (
-  testVariable: any,
-) => {
-  if (typeof testVariable === 'string') {
-    if (testVariable !== '') {
-      return testVariable;
-    }
-  }
-  return null;
-};
-const checkStringWithDefault = (
-  defaultString: string,
-  testVariable: any,
-) => {
-  if (typeof testVariable === 'string') {
-    if (testVariable !== '') {
-      return testVariable;
-    }
-  }
-  return defaultString;
-};
-const getSkuData = (
-  uniqueSkuSysId: Record<string, boolean>,
-) => {
-  const skuData: Record<string, UHardwareSkuConfigurations> = {};
-  // @ts-ignore
-  const grSkuData = new GlideRecord('u_hardware_sku_configurations');
-  grSkuData.addQuery('sys_id', 'IN', Object.keys(uniqueSkuSysId));
-  grSkuData.query();
-  while (grSkuData.next()) {
-    const testSkuSysId = checkString(grSkuData.getUniqueValue());
-    if (testSkuSysId !== null) {
-      skuData[testSkuSysId] = {
-        skuHeight: checkInteger(grSkuData.u_space_calculation_height.getValue()),
-        skuName: checkString(grSkuData.u_sku_name.getValue()),
-        skuMultiple: checkInteger(grSkuData.u_space_calculation_multiple.getValue()),
-        skuDerate: checkFloat(grSkuData.u_derate_kw.getValue()),
-      };
-    }
-  }
-  return skuData;
-};
-const getRemoteAdaptors = (
-  uniqueSwitchCi: Record<string, boolean>,
-) => {
-  const switchRemotePorts: Record<string, Record<string, boolean>> = {};
-  // @ts-ignore
-  const portRemote = new GlideRecord('cmdb_ci_network_adapter');
-  portRemote.addQuery('u_switch', 'IN', Object.keys(uniqueSwitchCi));
-  // portRemote.addEncodedQuery('nameSTARTSWITHeth');
-  // portRemote.addEncodedQuery('u_switchportSTARTSWITHeth');
-  portRemote.query();
-  while (portRemote.next()) {
-    const switchCiSysId = checkString(portRemote.u_switch.getValue());
-    const adaptorSysId = checkString(portRemote.getUniqueValue());
-    if (switchCiSysId !== null && adaptorSysId !== null) {
-      if (!Object.prototype.hasOwnProperty.call(switchRemotePorts, switchCiSysId)) {
-        switchRemotePorts[switchCiSysId] = {};
-      }
-      switchRemotePorts[switchCiSysId][adaptorSysId] = true;
-    }
-  }
-  return switchRemotePorts;
-};
-const getCiData = (
-  uniqueCiSysId: Record<string, boolean>,
-) => {
-  const ciData: Record<string, CiData> = {};
-  const uniqueSwitchCi: Record<string, boolean> = {};
-  if (Object.keys(uniqueCiSysId).length > 0) {
-    // @ts-ignore
-    const grCiHardware = new GlideRecord('cmdb_ci_hardware');
-    grCiHardware.addQuery('sys_id', 'IN', Object.keys(uniqueCiSysId));
-    grCiHardware.query();
-    while (grCiHardware.next()) {
-      const tempCiSysId = checkString(grCiHardware.getUniqueValue());
-      const tempCmdbStatus = checkString(grCiHardware.u_cmdb_ci_status.getDisplayValue());
-      const tempSysClassName = checkString(grCiHardware.sys_class_name.getValue());
-      if (tempCiSysId !== null) {
-        ciData[tempCiSysId] = {
-          assignmentGroupName: checkString(grCiHardware.assignment_group.getDisplayValue()),
-          assignmentGroupSysId: checkString(grCiHardware.assignment_group.getValue()),
-          cmdbNetworkSecurityZone: checkString(grCiHardware.u_cmdb_network_security_zone.getDisplayValue()),
-          cmdbStatus: checkString(grCiHardware.u_cmdb_ci_status.getDisplayValue()),
-          fqdn: checkString(grCiHardware.fqdn.getDisplayValue()),
-          hardwareStatus: checkString(grCiHardware.hardware_status.getValue()),
-          iPAddress: checkString(grCiHardware.ip_address.getDisplayValue()),
-          primaryBusinessServiceName: checkString(grCiHardware.u_cmdb_ci_service.getDisplayValue()),
-          primaryBusinessServiceSysId: checkString(grCiHardware.u_cmdb_ci_service.getValue()),
-          serviceGroupName: checkString(grCiHardware.u_patching_group.getDisplayValue()),
-          serviceGroupSysId: checkString(grCiHardware.u_patching_group.getValue()),
-          status: checkString(grCiHardware.install_status.getDisplayValue()),
-          supportGroupName: checkString(grCiHardware.support_group.getDisplayValue()),
-          supportGroupSysId: checkString(grCiHardware.support_group.getValue()),
-          sysClassName: checkString(grCiHardware.sys_class_name.getValue()),
-        };
-        if (tempSysClassName === 'cmdb_ci_ip_switch' && tempCmdbStatus !== 'Retired') {
-          uniqueSwitchCi[tempCiSysId] = true;
-        }
-      }
-    }
-  }
-  return {
-    ciData,
-    uniqueSwitchCi,
-  };
-};
-const getMetaData = (
-  environment: string | null,
-  rackSysIdArray: Array<string>,
-) => {
-  const rackNameUnique: Record<string, boolean> = {};
-  const rackSysIdMetaSysId: Record<string, string> = {};
-  const rackSysIdPowerDesign: Record<string, number> = {};
-  const filteredRackSysIdUnique: Record<string, boolean> = {};
-  // @ts-ignore
-  const grRackMeta = new GlideRecord('u_dc_rack_metadata');
-  grRackMeta.addQuery('u_rack', 'IN', rackSysIdArray);
-  if (environment !== null) {
-    grRackMeta.addQuery('u_environment', environment);
-  }
-  grRackMeta.query();
-  while (grRackMeta.next()) {
-    const tempRackSysId = checkString(grRackMeta.u_rack.getValue());
-    const tempRackMetaSysId = checkString(grRackMeta.getUniqueValue());
-    const tempRackName = checkString(grRackMeta.u_rack.getDisplayValue());
-    const tempPowerDesign = checkFloat(grRackMeta.u_power_design_kw.getValue());
-    if (tempRackSysId !== null) {
-      filteredRackSysIdUnique[tempRackSysId] = true;
-      if (tempRackName !== null) {
-        rackNameUnique[tempRackName] = true;
-      }
-      if (tempRackMetaSysId !== null) {
-        rackSysIdMetaSysId[tempRackSysId] = tempRackMetaSysId;
-      }
-      if (tempPowerDesign !== null) {
-        rackSysIdPowerDesign[tempRackSysId] = tempPowerDesign;
-      }
-    }
-  }
-  return {
-    rackNameUnique,
-    rackSysIdMetaSysId,
-    rackSysIdPowerDesign,
-  };
-};
-const getPowerIq = (
-  rackNameUnique: Record<string, boolean>,
-) => {
-  const rackNamePowerIqMax: Record<string, number> = {};
-  // @ts-ignore
-  const grPowerIq = new GlideRecord('u_poweriq_staging');
-  grPowerIq.addQuery('u_rack_name', 'IN', Object.keys(rackNameUnique));
-  grPowerIq.addEncodedQuery('sys_created_on>=javascript:gs.beginningOfLast6Months()');
-  grPowerIq.query();
-  while (grPowerIq.next()) {
-    const rackName = checkString(grPowerIq.u_rack_name.getValue());
-    const maxPower = checkFloat(grPowerIq.u_maximum_active_power.getValue());
-    if (rackName !== null && maxPower !== null) {
-      // check if rackname already exists in data
-      if (!Object.prototype.hasOwnProperty.call(rackNamePowerIqMax, rackName)) {
-        // create if first time
-        rackNamePowerIqMax[rackName] = maxPower;
-      } else if (maxPower > rackNamePowerIqMax[rackName]) {
-        // replace if greater
-        rackNamePowerIqMax[rackName] = maxPower;
-      }
-    }
-  }
-  return rackNamePowerIqMax;
-};
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-// const testPatchPanel = (
-//   patchpanelSysId: string,
-// ) => {
-//   const patchpanel = patchpanelData[patchpanelSysId];
-//   const rackSysId = patchpanel.patchRackSysId;
-//   const rackU = patchpanel.patchRackU;
-//   const sortResult = testValidPatchpanel(patchpanelSysId);
-//   if (rackSysId !== null) {
-//     if (sortResult.pass && rackU !== null) {
-//       if (!Object.prototype.hasOwnProperty.call(patchpanelRackMounted, rackSysId)) {
-//         patchpanelRackMounted[rackSysId] = {};
-//       }
-//       patchpanelRackMounted[rackSysId][patchpanelSysId] = true;
-//       // generate usageUnits for collision testing
-//       let modelHeight = 0;
-//       const modelSysId = patchpanel.patchModelSysId;
-//       if (modelSysId !== null) {
-//         if (Object.prototype.hasOwnProperty.call(modelData, modelSysId)) {
-//           const testModelHeight = modelData[modelSysId].modelHeight;
-//           if (testModelHeight !== null) {
-//             modelHeight = testModelHeight;
-//           }
-//         }
-//       }
-//       generateUsageUnits(
-//         modelHeight,
-//         rackSysId,
-//         rackU,
-//         patchpanelSysId,
-//         'u_patch_panel',
-//       );
-//     } else {
-//       patchpanelSortResult[patchpanelSysId] = sortResult.testReport;
-//       storePatchpanelBadData(
-//         patchpanelSysId,
-//         rackSysId,
-//       );
-//     }
-//   }
-// };
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-const testValidPatchpanel = (
-  patchpanel: Patchpanel,
-  patchpanelModelData: Record<string, Model>,
-) => {
-  if (patchpanel.patchRackU === null) {
-    return {
-      pass: false,
-      testReport: 'not a valid  patchpanel - u_rack_u is missing',
-    };
-  }
-  if (patchpanel.patchRackU === 0) {
-    return {
-      pass: false,
-      testReport: 'not a valid  patchpanel - u_rack_u is zero',
-    };
-  }
-  if (patchpanel.patchModelSysId === null) {
-    return {
-      pass: false,
-      testReport: 'not a valid patchpanel - does not have a model',
-    };
-  }
-  if (!Object.prototype.hasOwnProperty.call(patchpanelModelData, patchpanel.patchModelSysId)) {
-    return {
-      pass: false,
-      testReport: 'not a valid patchpanel - model not found',
-    };
-  }
-  const model: Model = patchpanelModelData[patchpanel.patchModelSysId];
-  if (model.modelHeight === null) {
-    return {
-      pass: false,
-      testReport: 'not a valid patchpanel - model height missing',
-    };
-  }
-  if (model.modelHeight < 1) {
-    return {
-      pass: false,
-      testReport: 'not a valid patchpanel - model height is less than 1',
-    };
-  }
-  return {
-    pass: true,
-    testReport: 'is a valid patchpanel',
-  };
-};
-const sortPatchPanels = (
-  oldUsageUnits: Record<string, Record<string, Record<string, string>>>,
-  patchpanelData: Record<string, Patchpanel>,
-  patchpanelModelData: Record<string, Model>,
-) => {
-  const patchpanelBadData: Record<string, Record<string, boolean>> = {};
-  const patchpanelRackMounted: Record<string, Record<string, boolean>> = {};
-  const patchpanelSortResult: Record<string, string> = {};
-  const collisionPatchpanel: Record<string, boolean> = {};
-  const newUsageUnits = oldUsageUnits;
-  Object.keys(patchpanelData).forEach((patchpanelSysId) => {
-    const { patchRackSysId } = patchpanelData[patchpanelSysId];
-    if (patchRackSysId) {
-      // check if patchpanel is valid
-      const resultPanel = testValidPatchpanel(
-        patchpanelData[patchpanelSysId],
-        patchpanelModelData,
-      );
-      patchpanelSortResult[patchpanelSysId] = resultPanel.testReport;
-      if (resultPanel.pass) {
-        // valid patchpanel
-        if (!Object.prototype.hasOwnProperty.call(patchpanelRackMounted, patchRackSysId)) {
-          patchpanelRackMounted[patchRackSysId] = {};
-        }
-        patchpanelRackMounted[patchRackSysId][patchpanelSysId] = true;
-        // generate unit usage and check for collisions
-      } else {
-        // bad patchpanel
-        if (!Object.prototype.hasOwnProperty.call(patchpanelBadData, patchRackSysId)) {
-          patchpanelBadData[patchRackSysId] = {};
-        }
-        patchpanelBadData[patchRackSysId][patchpanelSysId] = true;
-      }
-    }
-  });
-};
-const getPatchPanelData = (
-  testRackSysIds: Array<string>,
-) => {
-  const patchpanelData: Record<string, Patchpanel> = {};
-  const patchpanelModelData: Record<string, Model> = {};
-  const uniquePatchModelSysId: Record<string, boolean> = {};
-  // @ts-ignore
-  const grPatch = new GlideRecord('u_patch_panel');
-  grPatch.addQuery('u_rack', 'IN', testRackSysIds);
-  grPatch.query();
-  while (grPatch.next()) {
-    const tempPatchPanelSysId = checkString(grPatch.getUniqueValue());
-    const tempPatchModelSysId = checkString(grPatch.model_id.getValue());
-    if (tempPatchPanelSysId !== null) {
-      patchpanelData[tempPatchPanelSysId] = {
-        patchAssetTag: checkString(grPatch.asset_tag.getValue()),
-        patchModelSysId: tempPatchModelSysId,
-        patchName: checkString(grPatch.name.getValue()),
-        patchRackSysId: checkString(grPatch.u_rack.getValue()),
-        patchRackU: checkInteger(grPatch.u_rack_u.getValue()),
-      };
-    }
-    if (tempPatchModelSysId !== null) {
-      uniquePatchModelSysId[tempPatchModelSysId] = true;
-    }
-  }
-  if (Object.keys(uniquePatchModelSysId).length > 0) {
-    // @ts-ignore
-    const grModel = new GlideRecord('cmdb_model');
-    grModel.addQuery('sys_id', 'IN', Object.keys(uniquePatchModelSysId));
-    grModel.query();
-    while (grModel.next()) {
-      const tempModelSysId = checkString(grModel.getUniqueValue());
-      if (tempModelSysId !== null) {
-        patchpanelModelData[tempModelSysId] = {
-          deviceCategory: checkString(grModel.u_device_category.getDisplayValue()),
-          displayName: checkString(grModel.display_name.getValue()),
-          endOfFirmwareSupportDate: checkString(grModel.u_end_of_software_maintenance_date.getValue()),
-          endOfLife: checkString(grModel.u_end_of_life.getValue()),
-          endOfSale: checkString(grModel.u_end_of_sale.getValue()),
-          maxChildren: checkInteger(grModel.u_max_children.getValue()),
-          modelHeight: checkInteger(grModel.rack_units.getValue()),
-          modelName: checkString(grModel.name.getValue()),
-        };
-      }
-    }
-  }
-  return {
-    patchpanelData,
-    patchpanelModelData,
-  };
-};
-//
-//
-//
-//
-//
-//
-//
-//
-//
-// params from url
-//
-const chosenSkuSysId = 'afead3e913883f401287bd566144b006';
-const environmentValue = 'ManagedHosting1';
-// const numberOfServers = 9;
-// const roomSysIdArray = ['5400288a37bc7e40362896d543990e9b'];
-//
 const testRackSysIds = [
   'bc22df4adb1ec70cab79f7d41d9619f6',
   'b817db4edb168bc010b6f1561d961914',
@@ -1106,76 +800,6 @@ const testRackSysIds = [
   '30cae3f4db271788259e5898dc961926',
   '0aca67f4db271788259e5898dc961979',
 ];
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
 const results: RackHardwareSortResult = redbeardRackHardwareSort(testRackSysIds);
-//
-const { uniqueSkuSysId } = results;
-uniqueSkuSysId[chosenSkuSysId] = true;
-const {
-  ciData,
-  uniqueSwitchCi,
-} = getCiData(results.uniqueCiSysId);
-//
-const switchRemotePorts = getRemoteAdaptors(uniqueSwitchCi);
-//
-const skuData = getSkuData(uniqueSkuSysId);
-//
-const {
-  rackNameUnique,
-  rackSysIdMetaSysId,
-  rackSysIdPowerDesign,
-} = getMetaData(
-  environmentValue,
-  testRackSysIds,
-);
-//
-const rackNamePowerIqMax = getPowerIq(rackNameUnique);
-//
-const {
-  patchpanelData,
-  patchpanelModelData,
-} = getPatchPanelData(testRackSysIds);
-//
-sortPatchPanels(
-  results.usageUnits,
-  patchpanelData,
-  patchpanelModelData,
-  )
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-// show data
-//
-let output = '';
-output += `results = ${JSON.stringify(results, null, 2)};\n`;
-output += `ciData = ${JSON.stringify(ciData, null, 2)};\n`;
-output += `switchRemotePorts = ${JSON.stringify(switchRemotePorts, null, 2)};\n`;
-output += `skuData = ${JSON.stringify(skuData, null, 2)};\n`;
-output += `switchRemotePorts = ${JSON.stringify(switchRemotePorts, null, 2)};\n`;
-output += `rackSysIdMetaSysId = ${JSON.stringify(rackSysIdMetaSysId, null, 2)};\n`;
-output += `rackSysIdPowerDesign = ${JSON.stringify(rackSysIdPowerDesign, null, 2)};\n`;
-output += `rackNamePowerIqMax = ${JSON.stringify(rackNamePowerIqMax, null, 2)};\n`;
-// output += `xxxxxx = ${JSON.stringify(xxxxxx, null, 2)};\n`;
-// output += `xxxxxx = ${JSON.stringify(xxxxxx, null, 2)};\n`;
-// output += `xxxxxx = ${JSON.stringify(xxxxxx, null, 2)};\n`;
-// output += `xxxxxx = ${JSON.stringify(xxxxxx, null, 2)};\n`;
-// output += `xxxxxx = ${JSON.stringify(xxxxxx, null, 2)};\n`;
 // @ts-ignore
-gs.print(output);
+gs.print(results);
