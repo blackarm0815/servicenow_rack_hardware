@@ -297,6 +297,7 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         hardwareResult[hardwareSysId] = allTestResults;
         //
         // process sleds
+        //
         if (sortName === 'sleds') {
           if (parent !== null) {
             if (!Object.prototype.hasOwnProperty.call(hardwareChassisSled, parent)) {
@@ -321,6 +322,7 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         }
         //
         // process rackMounted
+        //
         if (sortName === 'rackMounted') {
           if (!Object.prototype.hasOwnProperty.call(hardwareRackMounted, rackSysId)) {
             hardwareRackMounted[rackSysId] = {};
@@ -355,13 +357,16 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         }
         //
         // process pdu
+        //
         if (sortName === 'pdu') {
           if (!Object.prototype.hasOwnProperty.call(hardwarePdu, rackSysId)) {
             hardwarePdu[rackSysId] = {};
           }
           hardwarePdu[rackSysId][hardwareSysId] = true;
         }
+        //
         // process networkCard
+        //
         if (sortName === 'networkCard') {
           if (!Object.prototype.hasOwnProperty.call(hardwareRackMounted, rackSysId)) {
             hardwareRackMounted[rackSysId] = {};
@@ -370,6 +375,7 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         }
         //
         // process rack
+        //
         if (sortName === 'rack') {
           if (!Object.prototype.hasOwnProperty.call(hardwareRacks, rackSysId)) {
             hardwareRacks[rackSysId] = {};
@@ -378,70 +384,13 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         }
         //
         // process badData
+        //
         if (sortName === 'badData') {
           if (!Object.prototype.hasOwnProperty.call(hardwareBadData, rackSysId)) {
             hardwareBadData[rackSysId] = {};
           }
           hardwareBadData[rackSysId][hardwareSysId] = true;
         }
-        //
-        // isUnidentified = true;
-        // // check for racks in alm hardware (weird, but it happens)
-        // const resultRack = testValidRack(
-        //   hardware,
-        //   modelData,
-        // );
-        // hardwareResult[hardwareSysId].push(resultRack.testReport);
-        // if (resultRack.pass) {
-        //   isUnidentified = false;
-        // }
-        // // check for sled
-        // if (isUnidentified) {
-        //   const resultSled = testValidChassisSled(
-        //   hardwareData,
-        //   hardwareSysId,
-        //   );
-        //   hardwareResult[hardwareSysId].push(resultSled.testReport);
-        //   if (resultSled.pass) {
-        //   isUnidentified = false;
-        //   }
-        // }
-        // // check for rackmounted
-        // if (isUnidentified) {
-        //   const resultRackMounted = testValidRackMounted(
-        //   hardware,
-        //   modelData,
-        //   );
-        //   hardwareResult[hardwareSysId].push(resultRackMounted.testReport);
-        //   if (resultRackMounted.pass) {
-        //   isUnidentified = false;
-        //   }
-        // }
-        // // check for network cards
-        // if (isUnidentified) {
-        //   const resultNetworkCard = testValidChassisNetwork(
-        //   hardwareData,
-        //   hardware,
-        //   );
-        //   hardwareResult[hardwareSysId].push(resultNetworkCard.testReport);
-        //   if (resultNetworkCard.pass) {
-        //   isUnidentified = false;
-        //   }
-        // }
-        // // check for pdus
-        // if (isUnidentified) {
-        //   const resultPdu = testValidPdu(
-        //   hardware,
-        //   );
-        //   hardwareResult[hardwareSysId].push(resultPdu.testReport);
-        //   if (resultPdu.pass) {
-        //   isUnidentified = false;
-        //   }
-        // }
-        // // catch everything that has not been identified
-        // if (isUnidentified) {
-        //   hardwareResult[hardwareSysId].push('unidentified - bad data');
-        // }
       }
     });
     //
