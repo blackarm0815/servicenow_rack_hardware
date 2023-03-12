@@ -70,7 +70,7 @@ const redbeardRackHardwareSort = (
   rackSysIdArray: Array<string>,
 ) => {
   const checkInteger = (
-    testVariable: any,
+    testVariable: unknown,
   ) => {
     if (typeof testVariable === 'string') {
       if (!Number.isNaN(parseInt(testVariable, 10))) {
@@ -80,7 +80,7 @@ const redbeardRackHardwareSort = (
     return null;
   };
   const checkString = (
-    testVariable: any,
+    testVariable: unknown,
   ) => {
     if (typeof testVariable === 'string') {
       if (testVariable !== '') {
