@@ -1,3 +1,6 @@
+"use strict";
+exports.__esModule = true;
+var servicenow_types_1 = require("@nuvolo/servicenow-types");
 var redbeardRackHardwareSort = function (rackSysIdArray) {
   var checkInteger = function (testVariable) {
     if (typeof testVariable === 'string') {
@@ -481,7 +484,7 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
   var getModel = function (uniqueHardwareModelSysId) {
     var modelData = {};
     if (Object.keys(uniqueHardwareModelSysId).length > 0) {
-      var grModel = new GlideRecord('cmdb_model');
+      var grModel = new servicenow_types_1.GlideRecord('cmdb_model');
       grModel.addQuery('sys_id', 'IN', Object.keys(uniqueHardwareModelSysId));
       grModel.query();
       while (grModel.next()) {
@@ -510,7 +513,7 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
     var uniqueHardwareModelSysId = {};
     var uniqueSkuSysId = {};
     if (tempRackSysIdArray.length > 0) {
-      var grHardware = new GlideRecord('alm_hardware');
+      var grHardware = new servicenow_types_1.GlideRecord('alm_hardware');
       grHardware.addQuery('u_rack', 'IN', tempRackSysIdArray);
       grHardware.query();
       while (grHardware.next()) {
@@ -572,7 +575,7 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
     var rackSysIdName = {};
     var uniqueRackSysId = {};
     if (tempRackSysIdArray.length > 0) {
-      var grRack = new GlideRecord('cmdb_ci_rack');
+      var grRack = new servicenow_types_1.GlideRecord('cmdb_ci_rack');
       grRack.addQuery('sys_id', 'IN', tempRackSysIdArray);
       grRack.query();
       while (grRack.next()) {
@@ -605,7 +608,7 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
     var patchpanelData = {};
     // take the hardware model sys_ids and add the patchpanel model sys_ids
     var uniqueModelSysId = uniqueHardwareModelSysId;
-    var grPatch = new GlideRecord('u_patch_panel');
+    var grPatch = new servicenow_types_1.GlideRecord('u_patch_panel');
     grPatch.addQuery('u_rack', 'IN', testRackSysIds);
     grPatch.query();
     while (grPatch.next()) {

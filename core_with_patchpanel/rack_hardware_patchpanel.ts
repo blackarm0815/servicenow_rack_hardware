@@ -1,3 +1,48 @@
+import { GlideRecord, GlideElement } from '@nuvolo/servicenow-types';
+// import { ReferenceGlideElement } from '@nuvolo/servicenow-types/util';
+// not used because i do not use dot-walking
+
+interface AlmHardware {
+  asset_tag: GlideElement;
+  ci: GlideElement;
+  install_status: GlideElement;
+  location: GlideElement;
+  model: GlideElement;
+  model_category: GlideElement;
+  parent: GlideElement;
+  serial_number: GlideElement;
+  substatus: GlideElement;
+  u_hardware_sku: GlideElement;
+  u_last_physical_audit: GlideElement;
+  u_provisioning_budget_code: GlideElement;
+  u_rack: GlideElement;
+  u_rack_position: GlideElement;
+  u_rack_u: GlideElement;
+  u_slot: GlideElement;
+}
+interface CmdbModel {
+  display_name: GlideElement;
+  name: GlideElement;
+  rack_units: GlideElement;
+  sys_id: GlideElement;
+  u_device_category: GlideElement;
+  u_end_of_life: GlideElement;
+  u_end_of_sale: GlideElement;
+  u_end_of_software_maintenance_date: GlideElement;
+  u_max_children: GlideElement;
+}
+interface UPatchPanel {
+  asset_tag: GlideElement;
+  model_id: GlideElement;
+  name: GlideElement;
+  u_rack: GlideElement;
+  u_rack_u: GlideElement;
+}
+interface CmdbCiRack {
+  name: GlideElement;
+  rack_units: GlideElement;
+  sys_id: GlideElement;
+}
 interface Core {
   collisionHardware: Record<string, boolean>;
   collisionPatchpanel: Record<string, boolean>;
@@ -611,7 +656,7 @@ const redbeardRackHardwareSort = (
     const modelData: Record<string, Model> = {};
     if (Object.keys(uniqueHardwareModelSysId).length > 0) {
       // @ts-ignore
-      const grModel = new GlideRecord('cmdb_model');
+      const grModel = new GlideRecord<CmdbModel>('cmdb_model');
       grModel.addQuery('sys_id', 'IN', Object.keys(uniqueHardwareModelSysId));
       grModel.query();
       while (grModel.next()) {
@@ -643,7 +688,7 @@ const redbeardRackHardwareSort = (
     const uniqueSkuSysId: Record<string, boolean> = {};
     if (tempRackSysIdArray.length > 0) {
       // @ts-ignore
-      const grHardware = new GlideRecord('alm_hardware');
+      const grHardware = new GlideRecord<AlmHardware>('alm_hardware');
       grHardware.addQuery('u_rack', 'IN', tempRackSysIdArray);
       grHardware.query();
       while (grHardware.next()) {
@@ -708,7 +753,7 @@ const redbeardRackHardwareSort = (
     const uniqueRackSysId: Record<string, boolean> = {};
     if (tempRackSysIdArray.length > 0) {
       // @ts-ignore
-      const grRack = new GlideRecord('cmdb_ci_rack');
+      const grRack = new GlideRecord<CmdbCiRack>('cmdb_ci_rack');
       grRack.addQuery('sys_id', 'IN', tempRackSysIdArray);
       grRack.query();
       while (grRack.next()) {
@@ -745,7 +790,7 @@ const redbeardRackHardwareSort = (
     // take the hardware model sys_ids and add the patchpanel model sys_ids
     const uniqueModelSysId = uniqueHardwareModelSysId;
     // @ts-ignore
-    const grPatch = new GlideRecord('u_patch_panel');
+    const grPatch = new GlideRecord<UPatchPanel>('u_patch_panel');
     grPatch.addQuery('u_rack', 'IN', testRackSysIds);
     grPatch.query();
     while (grPatch.next()) {
