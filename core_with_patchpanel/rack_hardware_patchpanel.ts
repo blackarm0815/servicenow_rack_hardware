@@ -292,13 +292,85 @@ const redbeardRackHardwareSort = (
       testReport: 'is a valid patchpanel',
     };
   };
+  const sortHardware = (
+    hardware: Hardware,
+    hardwareData: Record<string, Hardware>,
+    hardwareSysId: string,
+    modelData: Record<string, Model>,
+  ) => {
+    const allTestResults: Array<string> = [];
+    // test for sleds
+    const resultSled = testValidChassisSled(
+      hardwareData,
+      hardwareSysId,
+    );
+    allTestResults.push(resultSled.testReport);
+    if (resultSled.pass) {
+      return {
+        sortName: 'sled',
+        allTestResults,
+      };
+    }
+    // check for rackmounted
+    const resultRackMounted = testValidRackMounted(
+      hardware,
+      modelData,
+    );
+    allTestResults.push(resultRackMounted.testReport);
+    if (resultRackMounted.pass) {
+      return {
+        sortName: 'rackMounted',
+        allTestResults,
+      };
+    }
+    // check for pdus
+    const resultPdu = testValidPdu(
+      hardware,
+    );
+    allTestResults.push(resultRackMounted.testReport);
+    if (resultPdu.pass) {
+      return {
+        sortName: 'pdu',
+        allTestResults,
+      };
+    }
+    // check for network cards
+    const resultNetworkCard = testValidChassisNetwork(
+      hardwareData,
+      hardware,
+    );
+    allTestResults.push(resultRackMounted.testReport);
+    if (resultNetworkCard.pass) {
+      return {
+        sortName: 'networkCard',
+        allTestResults,
+      };
+    }
+    // test for racks
+    const resultRack = testValidRack(
+      hardware,
+      modelData,
+    );
+    allTestResults.push(resultRack.testReport);
+    if (resultRack.pass) {
+      return {
+        sortName: 'rack',
+        allTestResults,
+      };
+    }
+    // catch everything else
+    return {
+      sortName: 'badData',
+      allTestResults,
+    };
+  };
   const calculateSortedHardware = (
     hardwareData: Record<string, Hardware>,
     modelData: Record<string, Model>,
     patchpanelData: Record<string, Patchpanel>,
   ) => {
     // boolean to stop tests being run once the hardware is identified
-    let isUnidentified: boolean;
+    // let isUnidentified: boolean;
     // datastructures
     const collisionHardware: Record<string, boolean> = {};
     const collisionPatchpanel: Record<string, boolean> = {};
@@ -328,12 +400,10 @@ const redbeardRackHardwareSort = (
         rackU,
         slot,
       } = hardware;
-      //
       let slotString = '';
       if (slot !== null) {
         slotString = slot.toString();
       }
-      //
       let modelHeight = 0;
       if (modelSysId !== null && Object.prototype.hasOwnProperty.call(modelData, modelSysId)) {
         const testModelHeight = modelData[modelSysId].modelHeight;
@@ -343,127 +413,160 @@ const redbeardRackHardwareSort = (
       }
       //
       if (rackSysId !== null) {
-        hardwareResult[hardwareSysId] = [];
-        isUnidentified = true;
-        // check for racks in alm hardware (weird, but it happens)
-        const resultRack = testValidRack(
+        const {
+          sortName,
+          allTestResults,
+        } = sortHardware(
           hardware,
+          hardwareData,
+          hardwareSysId,
           modelData,
         );
-        hardwareResult[hardwareSysId].push(resultRack.testReport);
-        if (resultRack.pass) {
-          isUnidentified = false;
-          if (!Object.prototype.hasOwnProperty.call(hardwareRacks, rackSysId)) {
-            hardwareRacks[rackSysId] = {};
+        hardwareResult[hardwareSysId] = allTestResults;
+        //
+        // process sleds
+        if (sortName === 'sleds') {
+          if (parent !== null) {
+            if (!Object.prototype.hasOwnProperty.call(hardwareChassisSled, parent)) {
+              hardwareChassisSled[parent] = {};
+            }
+            hardwareChassisSled[parent][hardwareSysId] = true;
+            // generate usageSlots
+            if (!Object.prototype.hasOwnProperty.call(usageSlots, parent)) {
+              usageSlots[parent] = {};
+            }
+            if (!Object.prototype.hasOwnProperty.call(usageSlots[parent], slotString)) {
+              usageSlots[parent][slotString] = {};
+            }
+            usageSlots[parent][slotString][hardwareSysId] = true;
+            // deal with duplicates
+            if (Object.keys(usageSlots[parent][slotString]).length > 1) {
+              Object.keys(usageSlots[parent][slotString]).forEach((collisionSledSysId) => {
+                collisionSled[collisionSledSysId] = true;
+              });
+            }
           }
-          hardwareRacks[rackSysId][hardwareSysId] = true;
         }
-        // check for sled
-        if (isUnidentified) {
-          const resultSled = testValidChassisSled(
-            hardwareData,
-            hardwareSysId,
-          );
-          hardwareResult[hardwareSysId].push(resultSled.testReport);
-          if (resultSled.pass) {
-            isUnidentified = false;
-            if (parent !== null) {
-              if (!Object.prototype.hasOwnProperty.call(hardwareChassisSled, parent)) {
-                hardwareChassisSled[parent] = {};
+        //
+        // process rackMounted
+        if (sortName === 'rackMounted') {
+          if (!Object.prototype.hasOwnProperty.call(hardwareRackMounted, rackSysId)) {
+            hardwareRackMounted[rackSysId] = {};
+          }
+          hardwareRackMounted[rackSysId][hardwareSysId] = true;
+          // build collision data
+          if (rackU !== null) {
+            for (let loop = 0; loop < modelHeight; loop += 1) {
+              const unitString = (rackU + loop).toString();
+              // generate usage
+              if (!Object.prototype.hasOwnProperty.call(usageUnits, rackSysId)) {
+                usageUnits[rackSysId] = {};
               }
-              hardwareChassisSled[parent][hardwareSysId] = true;
-              // generate usageSlots
-              if (!Object.prototype.hasOwnProperty.call(usageSlots, parent)) {
-                usageSlots[parent] = {};
+              if (!Object.prototype.hasOwnProperty.call(usageUnits[rackSysId], unitString)) {
+                usageUnits[rackSysId][unitString] = {};
               }
-              if (!Object.prototype.hasOwnProperty.call(usageSlots[parent], slotString)) {
-                usageSlots[parent][slotString] = {};
-              }
-              usageSlots[parent][slotString][hardwareSysId] = true;
+              usageUnits[rackSysId][unitString][hardwareSysId] = 'alm_hardware';
               // deal with duplicates
-              if (Object.keys(usageSlots[parent][slotString]).length > 1) {
-                Object.keys(usageSlots[parent][slotString]).forEach((collisionSledSysId) => {
-                  collisionSled[collisionSledSysId] = true;
+              if (Object.keys(usageUnits[rackSysId][unitString]).length > 1) {
+                Object.keys(usageUnits[rackSysId][unitString]).forEach((collisionSysId) => {
+                  // alm_hardware or u_patch_panel
+                  if (usageUnits[rackSysId][unitString][collisionSysId] === 'alm_hardware') {
+                    collisionHardware[collisionSysId] = true;
+                  }
                 });
               }
             }
           }
         }
-        // check for rackmounted
-        if (isUnidentified) {
-          const resultRackMounted = testValidRackMounted(
-            hardware,
-            modelData,
-          );
-          hardwareResult[hardwareSysId].push(resultRackMounted.testReport);
-          if (resultRackMounted.pass) {
-            isUnidentified = false;
-            if (!Object.prototype.hasOwnProperty.call(hardwareRackMounted, rackSysId)) {
-              hardwareRackMounted[rackSysId] = {};
-            }
-            hardwareRackMounted[rackSysId][hardwareSysId] = true;
-            // build collision data
-            if (rackU !== null) {
-              for (let loop = 0; loop < modelHeight; loop += 1) {
-                const unitString = (rackU + loop).toString();
-                // generate usage
-                if (!Object.prototype.hasOwnProperty.call(usageUnits, rackSysId)) {
-                  usageUnits[rackSysId] = {};
-                }
-                if (!Object.prototype.hasOwnProperty.call(usageUnits[rackSysId], unitString)) {
-                  usageUnits[rackSysId][unitString] = {};
-                }
-                usageUnits[rackSysId][unitString][hardwareSysId] = 'alm_hardware';
-                // deal with duplicates
-                if (Object.keys(usageUnits[rackSysId][unitString]).length > 1) {
-                  Object.keys(usageUnits[rackSysId][unitString]).forEach((collisionSysId) => {
-                    // alm_hardware or u_patch_panel
-                    if (usageUnits[rackSysId][unitString][collisionSysId] === 'alm_hardware') {
-                      collisionHardware[collisionSysId] = true;
-                    }
-                  });
-                }
-              }
-            }
+        //
+        // process pdu
+        if (sortName === 'pdu') {
+          if (!Object.prototype.hasOwnProperty.call(hardwarePdu, rackSysId)) {
+            hardwarePdu[rackSysId] = {};
           }
+          hardwarePdu[rackSysId][hardwareSysId] = true;
         }
-        // check for network cards
-        if (isUnidentified) {
-          const resultNetworkCard = testValidChassisNetwork(
-            hardwareData,
-            hardware,
-          );
-          hardwareResult[hardwareSysId].push(resultNetworkCard.testReport);
-          if (resultNetworkCard.pass) {
-            isUnidentified = false;
-            if (!Object.prototype.hasOwnProperty.call(hardwareRackMounted, rackSysId)) {
-              hardwareRackMounted[rackSysId] = {};
-            }
-            hardwareRackMounted[rackSysId][hardwareSysId] = true;
+        // process networkCard
+        if (sortName === 'networkCard') {
+          if (!Object.prototype.hasOwnProperty.call(hardwareRackMounted, rackSysId)) {
+            hardwareRackMounted[rackSysId] = {};
           }
+          hardwareRackMounted[rackSysId][hardwareSysId] = true;
         }
-        // check for pdus
-        if (isUnidentified) {
-          const resultPdu = testValidPdu(
-            hardware,
-          );
-          hardwareResult[hardwareSysId].push(resultPdu.testReport);
-          if (resultPdu.pass) {
-            isUnidentified = false;
-            if (!Object.prototype.hasOwnProperty.call(hardwarePdu, rackSysId)) {
-              hardwarePdu[rackSysId] = {};
-            }
-            hardwarePdu[rackSysId][hardwareSysId] = true;
+        //
+        // process rack
+        if (sortName === 'rack') {
+          if (!Object.prototype.hasOwnProperty.call(hardwareRacks, rackSysId)) {
+            hardwareRacks[rackSysId] = {};
           }
+          hardwareRacks[rackSysId][hardwareSysId] = true;
         }
-        // catch everything that has not been identified
-        if (isUnidentified) {
-          hardwareResult[hardwareSysId].push('unidentified - bad data');
+        //
+        // process badData
+        if (sortName === 'badData') {
           if (!Object.prototype.hasOwnProperty.call(hardwareBadData, rackSysId)) {
             hardwareBadData[rackSysId] = {};
           }
           hardwareBadData[rackSysId][hardwareSysId] = true;
         }
+        //
+        // isUnidentified = true;
+        // // check for racks in alm hardware (weird, but it happens)
+        // const resultRack = testValidRack(
+        //   hardware,
+        //   modelData,
+        // );
+        // hardwareResult[hardwareSysId].push(resultRack.testReport);
+        // if (resultRack.pass) {
+        //   isUnidentified = false;
+        // }
+        // // check for sled
+        // if (isUnidentified) {
+        //   const resultSled = testValidChassisSled(
+        //     hardwareData,
+        //     hardwareSysId,
+        //   );
+        //   hardwareResult[hardwareSysId].push(resultSled.testReport);
+        //   if (resultSled.pass) {
+        //     isUnidentified = false;
+        //   }
+        // }
+        // // check for rackmounted
+        // if (isUnidentified) {
+        //   const resultRackMounted = testValidRackMounted(
+        //     hardware,
+        //     modelData,
+        //   );
+        //   hardwareResult[hardwareSysId].push(resultRackMounted.testReport);
+        //   if (resultRackMounted.pass) {
+        //     isUnidentified = false;
+        //   }
+        // }
+        // // check for network cards
+        // if (isUnidentified) {
+        //   const resultNetworkCard = testValidChassisNetwork(
+        //     hardwareData,
+        //     hardware,
+        //   );
+        //   hardwareResult[hardwareSysId].push(resultNetworkCard.testReport);
+        //   if (resultNetworkCard.pass) {
+        //     isUnidentified = false;
+        //   }
+        // }
+        // // check for pdus
+        // if (isUnidentified) {
+        //   const resultPdu = testValidPdu(
+        //     hardware,
+        //   );
+        //   hardwareResult[hardwareSysId].push(resultPdu.testReport);
+        //   if (resultPdu.pass) {
+        //     isUnidentified = false;
+        //   }
+        // }
+        // // catch everything that has not been identified
+        // if (isUnidentified) {
+        //   hardwareResult[hardwareSysId].push('unidentified - bad data');
+        // }
       }
     });
     //
