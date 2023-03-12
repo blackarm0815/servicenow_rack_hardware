@@ -655,7 +655,6 @@ const redbeardRackHardwareSort = (
   ) => {
     const modelData: Record<string, Model> = {};
     if (Object.keys(uniqueHardwareModelSysId).length > 0) {
-      // @ts-ignore
       const grModel = new GlideRecord<CmdbModel>('cmdb_model');
       grModel.addQuery('sys_id', 'IN', Object.keys(uniqueHardwareModelSysId));
       grModel.query();
@@ -687,7 +686,6 @@ const redbeardRackHardwareSort = (
     const uniqueHardwareModelSysId: Record<string, boolean> = {};
     const uniqueSkuSysId: Record<string, boolean> = {};
     if (tempRackSysIdArray.length > 0) {
-      // @ts-ignore
       const grHardware = new GlideRecord<AlmHardware>('alm_hardware');
       grHardware.addQuery('u_rack', 'IN', tempRackSysIdArray);
       grHardware.query();
@@ -752,7 +750,6 @@ const redbeardRackHardwareSort = (
     const rackSysIdName: Record<string, string> = {};
     const uniqueRackSysId: Record<string, boolean> = {};
     if (tempRackSysIdArray.length > 0) {
-      // @ts-ignore
       const grRack = new GlideRecord<CmdbCiRack>('cmdb_ci_rack');
       grRack.addQuery('sys_id', 'IN', tempRackSysIdArray);
       grRack.query();
@@ -789,7 +786,6 @@ const redbeardRackHardwareSort = (
     const patchpanelData: Record<string, Patchpanel> = {};
     // take the hardware model sys_ids and add the patchpanel model sys_ids
     const uniqueModelSysId = uniqueHardwareModelSysId;
-    // @ts-ignore
     const grPatch = new GlideRecord<UPatchPanel>('u_patch_panel');
     grPatch.addQuery('u_rack', 'IN', testRackSysIds);
     grPatch.query();
@@ -903,6 +899,7 @@ const testRackSysIds = [
   '30cae3f4db271788259e5898dc961926',
   '0aca67f4db271788259e5898dc961979',
 ];
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const core: Core = redbeardRackHardwareSort(testRackSysIds);
-// @ts-ignore
-gs.print(core);
+
+// gs.print(core);

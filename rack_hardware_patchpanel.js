@@ -684,5 +684,6 @@ var testRackSysIds = [
   '30cae3f4db271788259e5898dc961926',
   '0aca67f4db271788259e5898dc961979',
 ];
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 var core = redbeardRackHardwareSort(testRackSysIds);
-gs.print(core);
+// gs.print(core);
