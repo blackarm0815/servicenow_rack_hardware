@@ -210,14 +210,14 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
     var collisionSled = {};
     var patchpanelBadData = {};
     var patchpanelRackMounted = {};
-    var patchpanelSortResult = {};
-    var rackHardwareBadData = {};
-    var rackHardwareChassisNetwork = {};
-    var rackHardwareChassisSled = {};
-    var rackHardwarePdu = {};
-    var rackHardwareRackMounted = {};
-    var rackHardwareRacks = {};
-    var rackHardwareResult = {};
+    var patchpanelResult = {};
+    var hardwareBadData = {};
+    var hardwareChassisNetwork = {};
+    var hardwareChassisSled = {};
+    var hardwarePdu = {};
+    var hardwareRackMounted = {};
+    var hardwareRacks = {};
+    var hardwareResult = {};
     var usageSlots = {};
     var usageUnits = {};
     //
@@ -242,29 +242,29 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
       }
       //
       if (rackSysId !== null) {
-        rackHardwareResult[hardwareSysId] = [];
+        hardwareResult[hardwareSysId] = [];
         isUnidentified = true;
         // check for racks in alm hardware (weird, but it happens)
         var resultRack = testValidRack(hardware, modelData);
-        rackHardwareResult[hardwareSysId].push(resultRack.testReport);
+        hardwareResult[hardwareSysId].push(resultRack.testReport);
         if (resultRack.pass) {
           isUnidentified = false;
-          if (!Object.prototype.hasOwnProperty.call(rackHardwareRacks, rackSysId)) {
-            rackHardwareRacks[rackSysId] = {};
+          if (!Object.prototype.hasOwnProperty.call(hardwareRacks, rackSysId)) {
+            hardwareRacks[rackSysId] = {};
           }
-          rackHardwareRacks[rackSysId][hardwareSysId] = true;
+          hardwareRacks[rackSysId][hardwareSysId] = true;
         }
         // check for sled
         if (isUnidentified) {
           var resultSled = testValidChassisSled(hardwareData, hardwareSysId);
-          rackHardwareResult[hardwareSysId].push(resultSled.testReport);
+          hardwareResult[hardwareSysId].push(resultSled.testReport);
           if (resultSled.pass) {
             isUnidentified = false;
             if (parent !== null) {
-              if (!Object.prototype.hasOwnProperty.call(rackHardwareChassisSled, parent)) {
-                rackHardwareChassisSled[parent] = {};
+              if (!Object.prototype.hasOwnProperty.call(hardwareChassisSled, parent)) {
+                hardwareChassisSled[parent] = {};
               }
-              rackHardwareChassisSled[parent][hardwareSysId] = true;
+              hardwareChassisSled[parent][hardwareSysId] = true;
               // generate usageSlots
               if (!Object.prototype.hasOwnProperty.call(usageSlots, parent)) {
                 usageSlots[parent] = {};
@@ -285,13 +285,13 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         // check for rackmounted
         if (isUnidentified) {
           var resultRackMounted = testValidRackMounted(hardware, modelData);
-          rackHardwareResult[hardwareSysId].push(resultRackMounted.testReport);
+          hardwareResult[hardwareSysId].push(resultRackMounted.testReport);
           if (resultRackMounted.pass) {
             isUnidentified = false;
-            if (!Object.prototype.hasOwnProperty.call(rackHardwareRackMounted, rackSysId)) {
-              rackHardwareRackMounted[rackSysId] = {};
+            if (!Object.prototype.hasOwnProperty.call(hardwareRackMounted, rackSysId)) {
+              hardwareRackMounted[rackSysId] = {};
             }
-            rackHardwareRackMounted[rackSysId][hardwareSysId] = true;
+            hardwareRackMounted[rackSysId][hardwareSysId] = true;
             // build collision data
             if (rackU !== null) {
               var _loop_1 = function (loop) {
@@ -323,34 +323,34 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         // check for network cards
         if (isUnidentified) {
           var resultNetworkCard = testValidChassisNetwork(hardwareData, hardware);
-          rackHardwareResult[hardwareSysId].push(resultNetworkCard.testReport);
+          hardwareResult[hardwareSysId].push(resultNetworkCard.testReport);
           if (resultNetworkCard.pass) {
             isUnidentified = false;
-            if (!Object.prototype.hasOwnProperty.call(rackHardwareRackMounted, rackSysId)) {
-              rackHardwareRackMounted[rackSysId] = {};
+            if (!Object.prototype.hasOwnProperty.call(hardwareRackMounted, rackSysId)) {
+              hardwareRackMounted[rackSysId] = {};
             }
-            rackHardwareRackMounted[rackSysId][hardwareSysId] = true;
+            hardwareRackMounted[rackSysId][hardwareSysId] = true;
           }
         }
         // check for pdus
         if (isUnidentified) {
           var resultPdu = testValidPdu(hardware);
-          rackHardwareResult[hardwareSysId].push(resultPdu.testReport);
+          hardwareResult[hardwareSysId].push(resultPdu.testReport);
           if (resultPdu.pass) {
             isUnidentified = false;
-            if (!Object.prototype.hasOwnProperty.call(rackHardwarePdu, rackSysId)) {
-              rackHardwarePdu[rackSysId] = {};
+            if (!Object.prototype.hasOwnProperty.call(hardwarePdu, rackSysId)) {
+              hardwarePdu[rackSysId] = {};
             }
-            rackHardwarePdu[rackSysId][hardwareSysId] = true;
+            hardwarePdu[rackSysId][hardwareSysId] = true;
           }
         }
         // catch everything that has not been identified
         if (isUnidentified) {
-          rackHardwareResult[hardwareSysId].push('unidentified - bad data');
-          if (!Object.prototype.hasOwnProperty.call(rackHardwareBadData, rackSysId)) {
-            rackHardwareBadData[rackSysId] = {};
+          hardwareResult[hardwareSysId].push('unidentified - bad data');
+          if (!Object.prototype.hasOwnProperty.call(hardwareBadData, rackSysId)) {
+            hardwareBadData[rackSysId] = {};
           }
-          rackHardwareBadData[rackSysId][hardwareSysId] = true;
+          hardwareBadData[rackSysId][hardwareSysId] = true;
         }
       }
     });
@@ -370,7 +370,7 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
       if (patchRackSysId) {
         // check if patchpanel is valid
         var resultPanel = testValidPatchpanel(patchpanelData[patchpanelSysId], modelData);
-        patchpanelSortResult[patchpanelSysId] = resultPanel.testReport;
+        patchpanelResult[patchpanelSysId] = resultPanel.testReport;
         if (resultPanel.pass) {
           // valid patchpanel
           if (!Object.prototype.hasOwnProperty.call(patchpanelRackMounted, patchRackSysId)) {
@@ -423,14 +423,14 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
       collisionSled: collisionSled,
       patchpanelBadData: patchpanelBadData,
       patchpanelRackMounted: patchpanelRackMounted,
-      patchpanelSortResult: patchpanelSortResult,
-      rackHardwareBadData: rackHardwareBadData,
-      rackHardwareChassisNetwork: rackHardwareChassisNetwork,
-      rackHardwareChassisSled: rackHardwareChassisSled,
-      rackHardwarePdu: rackHardwarePdu,
-      rackHardwareRackMounted: rackHardwareRackMounted,
-      rackHardwareRacks: rackHardwareRacks,
-      rackHardwareResult: rackHardwareResult,
+      patchpanelResult: patchpanelResult,
+      hardwareBadData: hardwareBadData,
+      hardwareChassisNetwork: hardwareChassisNetwork,
+      hardwareChassisSled: hardwareChassisSled,
+      hardwarePdu: hardwarePdu,
+      hardwareRackMounted: hardwareRackMounted,
+      hardwareRacks: hardwareRacks,
+      hardwareResult: hardwareResult,
       usageSlots: usageSlots,
       usageUnits: usageUnits
     };
@@ -593,26 +593,26 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
   //
   var modelData = getModel(uniqueModelSysId);
   //
-  var _d = calculateSortedHardware(hardwareData, modelData, patchpanelData), collisionHardware = _d.collisionHardware, collisionPatchpanel = _d.collisionPatchpanel, collisionSled = _d.collisionSled, patchpanelBadData = _d.patchpanelBadData, patchpanelRackMounted = _d.patchpanelRackMounted, patchpanelSortResult = _d.patchpanelSortResult, rackHardwareBadData = _d.rackHardwareBadData, rackHardwareChassisNetwork = _d.rackHardwareChassisNetwork, rackHardwareChassisSled = _d.rackHardwareChassisSled, rackHardwarePdu = _d.rackHardwarePdu, rackHardwareRackMounted = _d.rackHardwareRackMounted, rackHardwareRacks = _d.rackHardwareRacks, rackHardwareResult = _d.rackHardwareResult, usageSlots = _d.usageSlots, usageUnits = _d.usageUnits;
+  var _d = calculateSortedHardware(hardwareData, modelData, patchpanelData), collisionHardware = _d.collisionHardware, collisionPatchpanel = _d.collisionPatchpanel, collisionSled = _d.collisionSled, patchpanelBadData = _d.patchpanelBadData, patchpanelRackMounted = _d.patchpanelRackMounted, patchpanelResult = _d.patchpanelResult, hardwareBadData = _d.hardwareBadData, hardwareChassisNetwork = _d.hardwareChassisNetwork, hardwareChassisSled = _d.hardwareChassisSled, hardwarePdu = _d.hardwarePdu, hardwareRackMounted = _d.hardwareRackMounted, hardwareRacks = _d.hardwareRacks, hardwareResult = _d.hardwareResult, usageSlots = _d.usageSlots, usageUnits = _d.usageUnits;
   // return data
   return {
     collisionHardware: collisionHardware,
     collisionPatchpanel: collisionPatchpanel,
     collisionSled: collisionSled,
+    hardwareBadData: hardwareBadData,
+    hardwareChassisNetwork: hardwareChassisNetwork,
+    hardwareChassisSled: hardwareChassisSled,
     hardwareData: hardwareData,
+    hardwarePdu: hardwarePdu,
+    hardwareRackMounted: hardwareRackMounted,
+    hardwareRacks: hardwareRacks,
+    hardwareResult: hardwareResult,
     modelData: modelData,
     patchpanelBadData: patchpanelBadData,
     patchpanelData: patchpanelData,
     patchpanelRackMounted: patchpanelRackMounted,
-    patchpanelSortResult: patchpanelSortResult,
+    patchpanelResult: patchpanelResult,
     rackData: rackData,
-    rackHardwareBadData: rackHardwareBadData,
-    rackHardwareChassisNetwork: rackHardwareChassisNetwork,
-    rackHardwareChassisSled: rackHardwareChassisSled,
-    rackHardwarePdu: rackHardwarePdu,
-    rackHardwareRackMounted: rackHardwareRackMounted,
-    rackHardwareRacks: rackHardwareRacks,
-    rackHardwareResult: rackHardwareResult,
     rackNameSysId: rackNameSysId,
     rackSysIdName: rackSysIdName,
     uniqueCiSysId: uniqueCiSysId,
@@ -636,5 +636,5 @@ var testRackSysIds = [
   '30cae3f4db271788259e5898dc961926',
   '0aca67f4db271788259e5898dc961979',
 ];
-var results = redbeardRackHardwareSort(testRackSysIds);
-gs.print(results);
+var core = redbeardRackHardwareSort(testRackSysIds);
+gs.print(core);

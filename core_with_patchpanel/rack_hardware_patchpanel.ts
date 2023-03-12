@@ -1,3 +1,31 @@
+interface Core {
+  collisionHardware: Record<string, boolean>;
+  collisionPatchpanel: Record<string, boolean>;
+  collisionSled: Record<string, boolean>,
+  hardwareBadData: Record<string, Record<string, boolean>>;
+  hardwareChassisNetwork: Record<string, Record<string, boolean>>;
+  hardwareChassisSled: Record<string, Record<string, boolean>>;
+  hardwareData: Record<string, Hardware>;
+  hardwarePdu: Record<string, Record<string, boolean>>;
+  hardwareRackMounted: Record<string, Record<string, boolean>>;
+  hardwareRacks: Record<string, Record<string, boolean>>;
+  hardwareResult: Record<string, Array<string>>;
+  modelData: Record<string, Model>;
+  patchpanelBadData: Record<string, Record<string, boolean>>;
+  patchpanelData: Record<string, Patchpanel>;
+  patchpanelRackMounted: Record<string, Record<string, boolean>>;
+  patchpanelResult: Record<string, string>;
+  rackData: Record<string, Rack>;
+  rackNameSysId: Record<string, string>;
+  rackSysIdName: Record<string, string>;
+  uniqueCiSysId: Record<string, boolean>;
+  uniqueHardwareSysId: Record<string, boolean>;
+  uniqueModelSysId: Record<string, boolean>;
+  uniqueRackSysId: Record<string, boolean>;
+  uniqueSkuSysId: Record<string, boolean>;
+  usageSlots: Record<string, Record<string, Record<string, true>>>,
+  usageUnits: Record<string, Record<string, Record<string, string>>>;
+}
 interface Hardware {
   assetTag: null | string;
   ciName: null | string;
@@ -37,34 +65,6 @@ interface Patchpanel {
 interface Rack {
   rackHeight: null | number;
   rackName: null | string;
-}
-interface RackHardwareSortResult {
-  collisionHardware: Record<string, boolean>;
-  collisionPatchpanel: Record<string, boolean>;
-  collisionSled: Record<string, boolean>,
-  hardwareData: Record<string, Hardware>;
-  modelData: Record<string, Model>;
-  patchpanelBadData: Record<string, Record<string, boolean>>;
-  patchpanelData: Record<string, Patchpanel>;
-  patchpanelRackMounted: Record<string, Record<string, boolean>>;
-  patchpanelSortResult: Record<string, string>;
-  rackData: Record<string, Rack>;
-  rackHardwareBadData: Record<string, Record<string, boolean>>;
-  rackHardwareChassisNetwork: Record<string, Record<string, boolean>>;
-  rackHardwareChassisSled: Record<string, Record<string, boolean>>;
-  rackHardwarePdu: Record<string, Record<string, boolean>>;
-  rackHardwareRackMounted: Record<string, Record<string, boolean>>;
-  rackHardwareRacks: Record<string, Record<string, boolean>>;
-  rackHardwareResult: Record<string, Array<string>>;
-  rackNameSysId: Record<string, string>;
-  rackSysIdName: Record<string, string>;
-  uniqueCiSysId: Record<string, boolean>;
-  uniqueHardwareSysId: Record<string, boolean>;
-  uniqueModelSysId: Record<string, boolean>;
-  uniqueRackSysId: Record<string, boolean>;
-  uniqueSkuSysId: Record<string, boolean>;
-  usageSlots: Record<string, Record<string, Record<string, true>>>,
-  usageUnits: Record<string, Record<string, Record<string, string>>>;
 }
 const redbeardRackHardwareSort = (
   rackSysIdArray: Array<string>,
@@ -305,14 +305,14 @@ const redbeardRackHardwareSort = (
     const collisionSled: Record<string, boolean> = {};
     const patchpanelBadData: Record<string, Record<string, boolean>> = {};
     const patchpanelRackMounted: Record<string, Record<string, boolean>> = {};
-    const patchpanelSortResult: Record<string, string> = {};
-    const rackHardwareBadData: Record<string, Record<string, boolean>> = {};
-    const rackHardwareChassisNetwork: Record<string, Record<string, boolean>> = {};
-    const rackHardwareChassisSled: Record<string, Record<string, boolean>> = {};
-    const rackHardwarePdu: Record<string, Record<string, boolean>> = {};
-    const rackHardwareRackMounted: Record<string, Record<string, boolean>> = {};
-    const rackHardwareRacks: Record<string, Record<string, boolean>> = {};
-    const rackHardwareResult: Record<string, Array<string>> = {};
+    const patchpanelResult: Record<string, string> = {};
+    const hardwareBadData: Record<string, Record<string, boolean>> = {};
+    const hardwareChassisNetwork: Record<string, Record<string, boolean>> = {};
+    const hardwareChassisSled: Record<string, Record<string, boolean>> = {};
+    const hardwarePdu: Record<string, Record<string, boolean>> = {};
+    const hardwareRackMounted: Record<string, Record<string, boolean>> = {};
+    const hardwareRacks: Record<string, Record<string, boolean>> = {};
+    const hardwareResult: Record<string, Array<string>> = {};
     const usageSlots: Record<string, Record<string, Record<string, true>>> = {};
     const usageUnits: Record<string, Record<string, Record<string, string>>> = {};
     //
@@ -343,20 +343,20 @@ const redbeardRackHardwareSort = (
       }
       //
       if (rackSysId !== null) {
-        rackHardwareResult[hardwareSysId] = [];
+        hardwareResult[hardwareSysId] = [];
         isUnidentified = true;
         // check for racks in alm hardware (weird, but it happens)
         const resultRack = testValidRack(
           hardware,
           modelData,
         );
-        rackHardwareResult[hardwareSysId].push(resultRack.testReport);
+        hardwareResult[hardwareSysId].push(resultRack.testReport);
         if (resultRack.pass) {
           isUnidentified = false;
-          if (!Object.prototype.hasOwnProperty.call(rackHardwareRacks, rackSysId)) {
-            rackHardwareRacks[rackSysId] = {};
+          if (!Object.prototype.hasOwnProperty.call(hardwareRacks, rackSysId)) {
+            hardwareRacks[rackSysId] = {};
           }
-          rackHardwareRacks[rackSysId][hardwareSysId] = true;
+          hardwareRacks[rackSysId][hardwareSysId] = true;
         }
         // check for sled
         if (isUnidentified) {
@@ -364,14 +364,14 @@ const redbeardRackHardwareSort = (
             hardwareData,
             hardwareSysId,
           );
-          rackHardwareResult[hardwareSysId].push(resultSled.testReport);
+          hardwareResult[hardwareSysId].push(resultSled.testReport);
           if (resultSled.pass) {
             isUnidentified = false;
             if (parent !== null) {
-              if (!Object.prototype.hasOwnProperty.call(rackHardwareChassisSled, parent)) {
-                rackHardwareChassisSled[parent] = {};
+              if (!Object.prototype.hasOwnProperty.call(hardwareChassisSled, parent)) {
+                hardwareChassisSled[parent] = {};
               }
-              rackHardwareChassisSled[parent][hardwareSysId] = true;
+              hardwareChassisSled[parent][hardwareSysId] = true;
               // generate usageSlots
               if (!Object.prototype.hasOwnProperty.call(usageSlots, parent)) {
                 usageSlots[parent] = {};
@@ -395,13 +395,13 @@ const redbeardRackHardwareSort = (
             hardware,
             modelData,
           );
-          rackHardwareResult[hardwareSysId].push(resultRackMounted.testReport);
+          hardwareResult[hardwareSysId].push(resultRackMounted.testReport);
           if (resultRackMounted.pass) {
             isUnidentified = false;
-            if (!Object.prototype.hasOwnProperty.call(rackHardwareRackMounted, rackSysId)) {
-              rackHardwareRackMounted[rackSysId] = {};
+            if (!Object.prototype.hasOwnProperty.call(hardwareRackMounted, rackSysId)) {
+              hardwareRackMounted[rackSysId] = {};
             }
-            rackHardwareRackMounted[rackSysId][hardwareSysId] = true;
+            hardwareRackMounted[rackSysId][hardwareSysId] = true;
             // build collision data
             if (rackU !== null) {
               for (let loop = 0; loop < modelHeight; loop += 1) {
@@ -433,13 +433,13 @@ const redbeardRackHardwareSort = (
             hardwareData,
             hardware,
           );
-          rackHardwareResult[hardwareSysId].push(resultNetworkCard.testReport);
+          hardwareResult[hardwareSysId].push(resultNetworkCard.testReport);
           if (resultNetworkCard.pass) {
             isUnidentified = false;
-            if (!Object.prototype.hasOwnProperty.call(rackHardwareRackMounted, rackSysId)) {
-              rackHardwareRackMounted[rackSysId] = {};
+            if (!Object.prototype.hasOwnProperty.call(hardwareRackMounted, rackSysId)) {
+              hardwareRackMounted[rackSysId] = {};
             }
-            rackHardwareRackMounted[rackSysId][hardwareSysId] = true;
+            hardwareRackMounted[rackSysId][hardwareSysId] = true;
           }
         }
         // check for pdus
@@ -447,22 +447,22 @@ const redbeardRackHardwareSort = (
           const resultPdu = testValidPdu(
             hardware,
           );
-          rackHardwareResult[hardwareSysId].push(resultPdu.testReport);
+          hardwareResult[hardwareSysId].push(resultPdu.testReport);
           if (resultPdu.pass) {
             isUnidentified = false;
-            if (!Object.prototype.hasOwnProperty.call(rackHardwarePdu, rackSysId)) {
-              rackHardwarePdu[rackSysId] = {};
+            if (!Object.prototype.hasOwnProperty.call(hardwarePdu, rackSysId)) {
+              hardwarePdu[rackSysId] = {};
             }
-            rackHardwarePdu[rackSysId][hardwareSysId] = true;
+            hardwarePdu[rackSysId][hardwareSysId] = true;
           }
         }
         // catch everything that has not been identified
         if (isUnidentified) {
-          rackHardwareResult[hardwareSysId].push('unidentified - bad data');
-          if (!Object.prototype.hasOwnProperty.call(rackHardwareBadData, rackSysId)) {
-            rackHardwareBadData[rackSysId] = {};
+          hardwareResult[hardwareSysId].push('unidentified - bad data');
+          if (!Object.prototype.hasOwnProperty.call(hardwareBadData, rackSysId)) {
+            hardwareBadData[rackSysId] = {};
           }
-          rackHardwareBadData[rackSysId][hardwareSysId] = true;
+          hardwareBadData[rackSysId][hardwareSysId] = true;
         }
       }
     });
@@ -488,7 +488,7 @@ const redbeardRackHardwareSort = (
           patchpanelData[patchpanelSysId],
           modelData,
         );
-        patchpanelSortResult[patchpanelSysId] = resultPanel.testReport;
+        patchpanelResult[patchpanelSysId] = resultPanel.testReport;
         if (resultPanel.pass) {
           // valid patchpanel
           if (!Object.prototype.hasOwnProperty.call(patchpanelRackMounted, patchRackSysId)) {
@@ -537,14 +537,14 @@ const redbeardRackHardwareSort = (
       collisionSled,
       patchpanelBadData,
       patchpanelRackMounted,
-      patchpanelSortResult,
-      rackHardwareBadData,
-      rackHardwareChassisNetwork,
-      rackHardwareChassisSled,
-      rackHardwarePdu,
-      rackHardwareRackMounted,
-      rackHardwareRacks,
-      rackHardwareResult,
+      patchpanelResult,
+      hardwareBadData,
+      hardwareChassisNetwork,
+      hardwareChassisSled,
+      hardwarePdu,
+      hardwareRackMounted,
+      hardwareRacks,
+      hardwareResult,
       usageSlots,
       usageUnits,
     };
@@ -743,14 +743,14 @@ const redbeardRackHardwareSort = (
     collisionSled,
     patchpanelBadData,
     patchpanelRackMounted,
-    patchpanelSortResult,
-    rackHardwareBadData,
-    rackHardwareChassisNetwork,
-    rackHardwareChassisSled,
-    rackHardwarePdu,
-    rackHardwareRackMounted,
-    rackHardwareRacks,
-    rackHardwareResult,
+    patchpanelResult,
+    hardwareBadData,
+    hardwareChassisNetwork,
+    hardwareChassisSled,
+    hardwarePdu,
+    hardwareRackMounted,
+    hardwareRacks,
+    hardwareResult,
     usageSlots,
     usageUnits,
   } = calculateSortedHardware(
@@ -763,20 +763,20 @@ const redbeardRackHardwareSort = (
     collisionHardware,
     collisionPatchpanel,
     collisionSled,
+    hardwareBadData,
+    hardwareChassisNetwork,
+    hardwareChassisSled,
     hardwareData,
+    hardwarePdu,
+    hardwareRackMounted,
+    hardwareRacks,
+    hardwareResult,
     modelData,
     patchpanelBadData,
     patchpanelData,
     patchpanelRackMounted,
-    patchpanelSortResult,
+    patchpanelResult,
     rackData,
-    rackHardwareBadData,
-    rackHardwareChassisNetwork,
-    rackHardwareChassisSled,
-    rackHardwarePdu,
-    rackHardwareRackMounted,
-    rackHardwareRacks,
-    rackHardwareResult,
     rackNameSysId,
     rackSysIdName,
     uniqueCiSysId,
@@ -800,6 +800,6 @@ const testRackSysIds = [
   '30cae3f4db271788259e5898dc961926',
   '0aca67f4db271788259e5898dc961979',
 ];
-const results: RackHardwareSortResult = redbeardRackHardwareSort(testRackSysIds);
+const core: Core = redbeardRackHardwareSort(testRackSysIds);
 // @ts-ignore
-gs.print(results);
+gs.print(core);
