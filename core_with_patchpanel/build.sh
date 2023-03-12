@@ -15,7 +15,3 @@ else
   exit
 fi
 echo
-
-# clean up
-grep -v '// @ts-ignore' rack_hardware_patchpanel.js | sed 's/    /  /g' > ../rack_hardware_patchpanel.js
-rm rack_hardware_patchpanel.js
