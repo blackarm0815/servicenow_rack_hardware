@@ -202,11 +202,13 @@ const redbeardRackHardwareSort = (
         testReport: 'not a valid sled - parent not found in hardwareData',
       };
     }
-    if (parentSysId !== null && hardwareData[parentSysId].rackSysId !== hardwareData[hardwareSysId].rackSysId) {
-      return {
-        pass: false,
-        testReport: 'not a valid sled - parent not in same rack',
-      };
+    if (parentSysId !== null) {
+      if (hardwareData[parentSysId].rackSysId !== hardwareData[hardwareSysId].rackSysId) {
+        return {
+          pass: false,
+          testReport: 'not a valid sled - parent not in same rack',
+        };
+      }
     }
     return {
       pass: true,
@@ -528,10 +530,12 @@ const redbeardRackHardwareSort = (
         patchRackU,
       } = patchpanelData[patchpanelSysId];
       let modelHeight = 0;
-      if (patchModelSysId !== null && Object.prototype.hasOwnProperty.call(modelData, patchModelSysId)) {
-        const testModelHeight = modelData[patchModelSysId].modelHeight;
-        if (testModelHeight !== null) {
-          modelHeight = testModelHeight;
+      if (patchModelSysId !== null) {
+        if (Object.prototype.hasOwnProperty.call(modelData, patchModelSysId)) {
+          const testModelHeight = modelData[patchModelSysId].modelHeight;
+          if (testModelHeight !== null) {
+            modelHeight = testModelHeight;
+          }
         }
       }
       if (patchRackSysId) {
@@ -613,10 +617,11 @@ const redbeardRackHardwareSort = (
       while (grModel.next()) {
         const tempModelSysId = checkString(grModel.getUniqueValue());
         if (tempModelSysId !== null) {
+          const firmware = checkString(grModel.u_end_of_software_maintenance_date.getValue());
           modelData[tempModelSysId] = {
             deviceCategory: checkString(grModel.u_device_category.getDisplayValue()),
             displayName: checkString(grModel.display_name.getValue()),
-            endOfFirmwareSupportDate: checkString(grModel.u_end_of_software_maintenance_date.getValue()),
+            endOfFirmwareSupportDate: firmware,
             endOfLife: checkString(grModel.u_end_of_life.getValue()),
             endOfSale: checkString(grModel.u_end_of_sale.getValue()),
             maxChildren: checkInteger(grModel.u_max_children.getValue()),
@@ -649,6 +654,7 @@ const redbeardRackHardwareSort = (
         const tempModelSysId = checkString(grHardware.model.getValue());
         const hardRackSysId = checkString(grHardware.u_rack.getValue());
         const tempSkuSysId = checkString(grHardware.u_hardware_sku.getValue());
+        const tempBudget = checkString(grHardware.u_provisioning_budget_code.getValue());
         // store
         if (tempHardwareSysId !== null && hardRackSysId !== null) {
           hardwareData[tempHardwareSysId] = {
@@ -661,7 +667,7 @@ const redbeardRackHardwareSort = (
             modelCategoryName: checkString(grHardware.model_category.getDisplayValue()),
             modelSysId: tempModelSysId,
             parent: checkString(grHardware.parent.getValue()),
-            provisioningBudgetCodeSysId: checkString(grHardware.u_provisioning_budget_code.getValue()),
+            provisioningBudgetCodeSysId: tempBudget,
             rackSysId: hardRackSysId,
             rackPosition: checkInteger(grHardware.u_rack_position.getValue()),
             rackU: checkInteger(grHardware.u_rack_u.getValue()),

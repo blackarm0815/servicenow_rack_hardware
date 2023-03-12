@@ -119,11 +119,13 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         testReport: 'not a valid sled - parent not found in hardwareData'
       };
     }
-    if (parentSysId !== null && hardwareData[parentSysId].rackSysId !== hardwareData[hardwareSysId].rackSysId) {
-      return {
-        pass: false,
-        testReport: 'not a valid sled - parent not in same rack'
-      };
+    if (parentSysId !== null) {
+      if (hardwareData[parentSysId].rackSysId !== hardwareData[hardwareSysId].rackSysId) {
+        return {
+          pass: false,
+          testReport: 'not a valid sled - parent not in same rack'
+        };
+      }
     }
     return {
       pass: true,
@@ -400,10 +402,12 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
       var patchRackSysId = patchpanelData[patchpanelSysId].patchRackSysId;
       var _a = patchpanelData[patchpanelSysId], patchModelSysId = _a.patchModelSysId, patchRackU = _a.patchRackU;
       var modelHeight = 0;
-      if (patchModelSysId !== null && Object.prototype.hasOwnProperty.call(modelData, patchModelSysId)) {
-        var testModelHeight = modelData[patchModelSysId].modelHeight;
-        if (testModelHeight !== null) {
-          modelHeight = testModelHeight;
+      if (patchModelSysId !== null) {
+        if (Object.prototype.hasOwnProperty.call(modelData, patchModelSysId)) {
+          var testModelHeight = modelData[patchModelSysId].modelHeight;
+          if (testModelHeight !== null) {
+            modelHeight = testModelHeight;
+          }
         }
       }
       if (patchRackSysId) {
@@ -483,10 +487,11 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
       while (grModel.next()) {
         var tempModelSysId = checkString(grModel.getUniqueValue());
         if (tempModelSysId !== null) {
+          var firmware = checkString(grModel.u_end_of_software_maintenance_date.getValue());
           modelData[tempModelSysId] = {
             deviceCategory: checkString(grModel.u_device_category.getDisplayValue()),
             displayName: checkString(grModel.display_name.getValue()),
-            endOfFirmwareSupportDate: checkString(grModel.u_end_of_software_maintenance_date.getValue()),
+            endOfFirmwareSupportDate: firmware,
             endOfLife: checkString(grModel.u_end_of_life.getValue()),
             endOfSale: checkString(grModel.u_end_of_sale.getValue()),
             maxChildren: checkInteger(grModel.u_max_children.getValue()),
@@ -516,6 +521,7 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         var tempModelSysId = checkString(grHardware.model.getValue());
         var hardRackSysId = checkString(grHardware.u_rack.getValue());
         var tempSkuSysId = checkString(grHardware.u_hardware_sku.getValue());
+        var tempBudget = checkString(grHardware.u_provisioning_budget_code.getValue());
         // store
         if (tempHardwareSysId !== null && hardRackSysId !== null) {
           hardwareData[tempHardwareSysId] = {
@@ -528,7 +534,7 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
             modelCategoryName: checkString(grHardware.model_category.getDisplayValue()),
             modelSysId: tempModelSysId,
             parent: checkString(grHardware.parent.getValue()),
-            provisioningBudgetCodeSysId: checkString(grHardware.u_provisioning_budget_code.getValue()),
+            provisioningBudgetCodeSysId: tempBudget,
             rackSysId: hardRackSysId,
             rackPosition: checkInteger(grHardware.u_rack_position.getValue()),
             rackU: checkInteger(grHardware.u_rack_u.getValue()),
