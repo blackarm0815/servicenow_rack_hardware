@@ -257,9 +257,6 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         };
     };
     var calculateSortedHardware = function (hardwareData, modelData, patchpanelData) {
-        // boolean to stop tests being run once the hardware is identified
-        // let isUnidentified: boolean;
-        // datastructures
         var collisionHardware = {};
         var collisionPatchpanel = {};
         var collisionSled = {};
@@ -275,9 +272,6 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
         var hardwareResult = {};
         var usageSlots = {};
         var usageUnits = {};
-        //
-        // process hardware
-        //
         Object.keys(hardwareData).forEach(function (hardwareSysId) {
             // generate needed variables
             var hardware = hardwareData[hardwareSysId];
@@ -293,7 +287,6 @@ var redbeardRackHardwareSort = function (rackSysIdArray) {
                     modelHeight = testModelHeight;
                 }
             }
-            //
             if (rackSysId !== null) {
                 var _a = sortHardware(hardware, hardwareData, hardwareSysId, modelData), sortName = _a.sortName, allTestResults = _a.allTestResults;
                 hardwareResult[hardwareSysId] = allTestResults;

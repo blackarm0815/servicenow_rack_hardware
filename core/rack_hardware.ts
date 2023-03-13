@@ -313,9 +313,6 @@ const redbeardRackHardwareSort = (
     hardwareData: Record<string, Hardware>,
     modelData: Record<string, Model>,
   ) => {
-    // boolean to stop tests being run once the hardware is identified
-    // let isUnidentified: boolean;
-    // datastructures
     const collisionHardware: Record<string, boolean> = {};
     const collisionPatchpanel: Record<string, boolean> = {};
     const collisionSled: Record<string, boolean> = {};
@@ -328,9 +325,6 @@ const redbeardRackHardwareSort = (
     const hardwareResult: Record<string, Array<string>> = {};
     const usageSlots: Record<string, Record<string, Record<string, true>>> = {};
     const usageUnits: Record<string, Record<string, Record<string, string>>> = {};
-    //
-    // process hardware
-    //
     Object.keys(hardwareData).forEach((hardwareSysId) => {
       // generate needed variables
       const hardware = hardwareData[hardwareSysId];
@@ -352,7 +346,6 @@ const redbeardRackHardwareSort = (
           modelHeight = testModelHeight;
         }
       }
-      //
       if (rackSysId !== null) {
         const {
           sortName,
